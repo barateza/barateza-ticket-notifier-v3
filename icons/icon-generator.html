@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Icon Generator</title>
+    <style>
+        canvas { border: 1px solid #ccc; margin: 10px; }
+        body { font-family: Arial, sans-serif; padding: 20px; }
+    </style>
+</head>
+<body>
+    <h3>Chrome Extension Icon Generator</h3>
+    <p>Use this tool to generate PNG icons from the SVG. Save each canvas as PNG with the corresponding filename:</p>
+
+    <div>
+        <h4>16x16 (icon16.png)</h4>
+        <canvas id="icon16" width="16" height="16"></canvas>
+    </div>
+
+    <div>
+        <h4>48x48 (icon48.png)</h4>
+        <canvas id="icon48" width="48" height="48"></canvas>
+    </div>
+
+    <div>
+        <h4>128x128 (icon128.png)</h4>
+        <canvas id="icon128" width="128" height="128"></canvas>
+    </div>
+
+    <script>
+        const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4A90E2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#357ABD;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="58" fill="url(#grad)" stroke="#2C5F8B" stroke-width="4"/>
+
+  <!-- Ticket icon -->
+  <rect x="32" y="44" width="64" height="40" rx="6" fill="white" opacity="0.9"/>
+  <rect x="36" y="48" width="56" height="4" fill="#4A90E2"/>
+  <rect x="36" y="56" width="40" height="3" fill="#666"/>
+  <rect x="36" y="62" width="48" height="3" fill="#666"/>
+  <rect x="36" y="68" width="32" height="3" fill="#666"/>
+  <rect x="36" y="74" width="44" height="3" fill="#666"/>
+
+  <!-- Notification dot -->
+  <circle cx="88" cy="44" r="12" fill="#FF6B6B"/>
+  <text x="88" y="49" text-anchor="middle" fill="white" font-family="Arial" font-size="10" font-weight="bold">!</text>
+</svg>`;
+
+        function generateIcon(canvasId, size) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+
+            // Create SVG blob
+            const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(svgBlob);
+
+            // Create image and draw to canvas
+            const img = new Image();
+            img.onload = function() {
+                ctx.drawImage(img, 0, 0, size, size);
+                URL.revokeObjectURL(url);
+            };
+            img.src = url;
+        }
+
+        // Generate all icon sizes
+        generateIcon('icon16', 16);
+        generateIcon('icon48', 48);
+        generateIcon('icon128', 128);
+    </script>
+</body>
+</html>
