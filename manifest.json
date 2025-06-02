@@ -4,6 +4,7 @@
   "version": "1.0",
   "description": "Monitor Zendesk ticket endpoints and get notified when new tickets arrive",
   "permissions": [
+    "offscreen",
     "cookies",
     "alarms",
     "notifications",
