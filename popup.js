@@ -339,6 +339,18 @@ function escapeHtml(text) {
     return text.replace(/[&<>"']/g, (m) => map[m]);
 }
 
+async function saveEndpoints(endpoints) {
+    try {
+        await chrome.storage.local.set({ endpoints });
+        console.log('Endpoints saved successfully:', endpoints.length, 'endpoints');
+        return true;
+    } catch (error) {
+        console.error('Failed to save endpoints:', error);
+        showError('Failed to save endpoints. Please try again.');
+        return false;
+    }
+}
+
 function showError(message) {
     showMessage(message, 'error');
 }
