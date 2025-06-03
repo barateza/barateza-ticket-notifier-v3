@@ -6,26 +6,44 @@ let isEnabled = true;
 
 // Initialize extension
 chrome.runtime.onInstalled.addListener(async (details) => {
-  console.log('Zendesk Ticket Monitor installed');
+  console.log('Extension event:', details.reason);
 
-  // Set default settings
-  await chrome.storage.local.set({
-    endpoints: [
+  // Get existing data
+  const { endpoints, settings } = await chrome.storage.local.get(['endpoints', 'settings']);
+
+  // Only set defaults if data doesn't exist
+  const updates = {};
+
+  if (!endpoints || !Array.isArray(endpoints)) {
+    updates.endpoints = [
       {
         id: Date.now(),
         name: 'New AMER Tickets',
         url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+group:amer+assignee:none+status:new',
         enabled: true
       }
-    ],
-    settings: {
-      checkInterval: 1, // minutes
+    ];
+    console.log('Setting default endpoints');
+  } else {
+    console.log(`Preserving ${endpoints.length} existing endpoints`);
+  }
+
+  if (!settings) {
+    updates.settings = {
+      checkInterval: 1,
       soundEnabled: true,
       notificationEnabled: true
-    }
-  });
+    };
+    console.log('Setting default settings');
+  } else {
+    console.log('Preserving existing settings');
+  }
 
-  // Start monitoring
+  // Only update storage if we have new data to set
+  if (Object.keys(updates).length > 0) {
+    await chrome.storage.local.set(updates);
+  }
+
   startMonitoring();
 });
 
