@@ -144,9 +144,11 @@ window.toggleEndpoint = async function(index) {
 
         if (endpoints && endpoints[index]) {
             endpoints[index].enabled = !endpoints[index].enabled;
-            await chrome.storage.local.set({ endpoints });
-            await loadEndpoints();
-            showSuccess(`Endpoint ${endpoints[index].enabled ? 'enabled' : 'disabled'}`);
+            const saved = await saveEndpoints(endpoints);
+            if (saved) {
+                await loadEndpoints();
+                showSuccess(`Endpoint ${endpoints[index].enabled ? 'enabled' : 'disabled'}`);
+            }
         }
     } catch (error) {
         console.error('Error toggling endpoint:', error);
