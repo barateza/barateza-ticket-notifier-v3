@@ -3,6 +3,7 @@
 
 let endpointCounts = new Map(); // Store previous counts for each endpoint
 let isEnabled = true;
+let notificationEndpointMap = new Map(); // Map notificationId to endpoint URL
 
 // Initialize extension
 chrome.runtime.onInstalled.addListener(async (details) => {
@@ -126,7 +127,7 @@ async function checkEndpoint(endpoint, settings) {
     // Check if count increased
     if (newCount > previousCount && previousCount >= 0) {
       const newTickets = newCount - previousCount;
-      await notifyNewTickets(endpoint.name, newTickets, newCount, settings);
+      await notifyNewTickets(endpoint.name, newTickets, newCount, settings, endpoint); // pass endpoint
     }
 
     // Update stored count
@@ -171,7 +172,7 @@ async function getZendeskCookies(domain) {
 }
 
 // Send notifications when new tickets are found
-async function notifyNewTickets(endpointName, newTickets, totalCount, settings) {
+async function notifyNewTickets(endpointName, newTickets, totalCount, settings, endpoint) {
   console.log(`New tickets detected: ${newTickets} new tickets in ${endpointName}`);
 
   // Play sound notification
@@ -181,17 +182,16 @@ async function notifyNewTickets(endpointName, newTickets, totalCount, settings) 
 
   // Show browser notification  
   if (settings && settings.notificationEnabled) {
+    const notificationId = `ticket-notification-${endpoint.id}-${Date.now()}`;
     const notificationOptions = {
       type: 'basic',
       iconUrl: 'icons/icon48.png',
-      title: 'New Zendesk Tickets!',
-      message: `${newTickets} new ticket(s) in ${endpointName}\nTotal: ${totalCount} tickets`
+      title: `New Zendesk Tickets: ${endpointName}`,
+      message: `${newTickets} new ticket(s)\nTotal: ${totalCount} tickets`,
+      priority: 2
     };
-
-    await chrome.notifications.create(
-      `ticket-notification-${Date.now()}`, 
-      notificationOptions
-    );
+    notificationEndpointMap.set(notificationId, endpoint.url);
+    await chrome.notifications.create(notificationId, notificationOptions);
   }
 }
 
@@ -268,12 +268,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 chrome.notifications.onClicked.addListener((notificationId) => {
   console.log('Notification clicked:', notificationId);
 
-  // Open Zendesk in new tab
-  chrome.tabs.create({
-    url: 'https://cpanel.zendesk.com/agent/dashboard'
-  });
-
-  // Clear the notification
+  const endpointUrl = notificationEndpointMap.get(notificationId);
+  if (endpointUrl) {
+    chrome.tabs.create({ url: endpointUrl });
+    notificationEndpointMap.delete(notificationId);
+  } else {
+    chrome.tabs.create({
+      url: 'https://cpanel.zendesk.com/agent/dashboard'
+    });
+  }
   chrome.notifications.clear(notificationId);
 });
 
