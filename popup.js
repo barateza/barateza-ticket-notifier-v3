@@ -167,9 +167,11 @@ window.deleteEndpoint = async function(index) {
 
         if (endpoints && endpoints[index]) {
             endpoints.splice(index, 1);
-            await chrome.storage.local.set({ endpoints });
-            await loadEndpoints();
-            showSuccess('Endpoint deleted');
+            const saved = await saveEndpoints(endpoints);
+            if (saved) {
+                await loadEndpoints();
+                showSuccess('Endpoint deleted');
+            }
         }
     } catch (error) {
         console.error('Error deleting endpoint:', error);
@@ -310,11 +312,12 @@ async function handleSaveEndpoint() {
         };
 
         endpoints.push(newEndpoint);
-        await chrome.storage.local.set({ endpoints });
-
-        hideAddEndpointModal();
-        await loadEndpoints();
-        showSuccess('Endpoint added successfully');
+        const saved = await saveEndpoints(endpoints);
+        if (saved) {
+            hideAddEndpointModal();
+            await loadEndpoints();
+            showSuccess('Endpoint added successfully');
+        }
 
     } catch (error) {
         console.error('Error saving endpoint:', error);
