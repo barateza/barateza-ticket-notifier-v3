@@ -4,6 +4,8 @@
 let endpointCounts = new Map(); // Store previous counts for each endpoint
 let isEnabled = true;
 let notificationEndpointMap = new Map(); // Map notificationId to endpoint URL
+let lastCheckTime = 0;
+const MIN_REFRESH_INTERVAL = 30000; // 30 seconds minimum between manual refreshes
 
 // Initialize extension
 chrome.runtime.onInstalled.addListener(async (details) => {
@@ -33,10 +35,16 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     updates.settings = {
       checkInterval: 1,
       soundEnabled: true,
-      notificationEnabled: true
+      notificationEnabled: true,
+      darkMode: false
     };
     console.log('Setting default settings');
   } else {
+    // Add missing properties to existing settings
+    if (!('darkMode' in settings)) {
+      settings.darkMode = false;
+      updates.settings = settings;
+    }
     console.log('Preserving existing settings');
   }
 
