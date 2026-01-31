@@ -259,6 +259,16 @@ async function updateBadge() {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   switch (request.action) {
     case 'refreshNow':
+      const now = Date.now();
+      if (now - lastCheckTime < MIN_REFRESH_INTERVAL) {
+        console.log('Refresh rate limited');
+        sendResponse({ 
+          success: false, 
+          error: 'Please wait 30 seconds before refreshing again' 
+        });
+        return true;
+      }
+      lastCheckTime = now;
       console.log('Manual refresh requested');
       checkAllEndpoints();
       sendResponse({ success: true });
@@ -273,7 +283,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     case 'getStatus':
       sendResponse({ 
         enabled: isEnabled,
-        counts: Array.from(endpointCounts.entries())
+        counts: Array.from(endpointCounts.entries()),
+        lastCheck: lastCheckTime
       });
       break;
 
