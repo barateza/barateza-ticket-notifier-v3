@@ -32,6 +32,7 @@ function setupEventListeners() {
     document.getElementById('closeModal').addEventListener('click', hideAddEndpointModal);
     document.getElementById('cancelEndpoint').addEventListener('click', hideAddEndpointModal);
     document.getElementById('saveEndpoint').addEventListener('click', handleSaveEndpoint);
+    document.getElementById('testEndpoint').addEventListener('click', handleTestEndpoint);
 
     // Close modal when clicking outside
     document.getElementById('addEndpointModal').addEventListener('click', (e) => {
@@ -39,6 +40,50 @@ function setupEventListeners() {
             hideAddEndpointModal();
         }
     });
+}
+
+// Show loading overlay
+function showLoading(message = 'Loading...') {
+    const overlay = document.getElementById('loadingOverlay');
+    const loadingContent = overlay.querySelector('.loading-content');
+    loadingContent.querySelector('p').textContent = message;
+    overlay.classList.remove('hidden');
+}
+
+// Hide loading overlay
+function hideLoading() {
+    document.getElementById('loadingOverlay').classList.add('hidden');
+}
+
+// Handle endpoint test
+async function handleTestEndpoint() {
+    const url = document.getElementById('endpointUrl').value.trim();
+    
+    if (!url) {
+        showError('Please enter a URL to test');
+        return;
+    }
+    
+    try {
+        const urlObj = new URL(url);
+        if (!urlObj.hostname.includes('zendesk.com')) {
+            showError('URL must be a Zendesk domain (*.zendesk.com)');
+            return;
+        }
+    } catch (error) {
+        showError('Please enter a valid URL');
+        return;
+    }
+    
+    showLoading('Testing endpoint connection...');
+    const testResult = await testEndpoint(url);
+    hideLoading();
+    
+    if (testResult.success) {
+        showSuccess(testResult.message);
+    } else {
+        showError(testResult.message);
+    }
 }
 
 // Load and display current settings
