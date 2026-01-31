@@ -26,6 +26,7 @@ function setupEventListeners() {
     document.getElementById('soundEnabled').addEventListener('change', saveSettings);
     document.getElementById('notificationEnabled').addEventListener('change', saveSettings);
     document.getElementById('checkInterval').addEventListener('change', saveSettings);
+    document.getElementById('darkMode').addEventListener('change', saveSettings);
 
     // Endpoint management
     document.getElementById('addEndpointBtn').addEventListener('click', showAddEndpointModal);
@@ -40,6 +41,33 @@ function setupEventListeners() {
             hideAddEndpointModal();
         }
     });
+}
+
+// Handle refresh now button with debounce
+async function handleRefreshNow() {
+    const btn = document.getElementById('refreshBtn');
+    const originalText = btn.innerHTML;
+
+    try {
+        btn.innerHTML = '<span class="btn-icon">⏳</span> Checking...';
+        btn.disabled = true;
+
+        const response = await chrome.runtime.sendMessage({ action: 'refreshNow' });
+
+        if (response && response.success) {
+            showSuccess('Manual refresh completed');
+            await updateStatus();
+        } else {
+            showError(response.error || 'Refresh failed');
+        }
+    } catch (error) {
+        console.error('Error during refresh:', error);
+        showError('Refresh failed');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        updateLastCheckTime();
+    }
 }
 
 // Show loading overlay

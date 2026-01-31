@@ -418,6 +418,97 @@ body {
     background: #e67e22;
 }
 
+/* Dark mode styles */
+body.dark-mode {
+    background: linear-gradient(135deg, #1e272e 0%, #3742fa 100%);
+    color: #ecf0f1;
+}
+
+body.dark-mode .header,
+body.dark-mode .controls,
+body.dark-mode .section,
+body.dark-mode .footer {
+    background: rgba(30, 41, 59, 0.95);
+    border-color: #475569;
+}
+
+body.dark-mode .header h1 {
+    color: #f1f5f9;
+}
+
+body.dark-mode .status-indicator {
+    color: #94a3b8;
+}
+
+body.dark-mode .setting label {
+    color: #e2e8f0;
+}
+
+body.dark-mode .endpoint-item {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+body.dark-mode .endpoint-name {
+    color: #f1f5f9;
+}
+
+body.dark-mode .endpoint-url {
+    color: #94a3b8;
+}
+
+body.dark-mode .modal-content {
+    background: #1e293b;
+    color: #f1f5f9;
+}
+
+body.dark-mode .modal-header {
+    border-color: #475569;
+}
+
+body.dark-mode .modal-header h3 {
+    color: #f1f5f9;
+}
+
+body.dark-mode .form-group label {
+    color: #e2e8f0;
+}
+
+body.dark-mode .form-group input,
+body.dark-mode .form-group textarea {
+    background: #334155;
+    border-color: #475569;
+    color: #f1f5f9;
+}
+
+body.dark-mode .form-group input::placeholder,
+body.dark-mode .form-group textarea::placeholder {
+    color: #94a3b8;
+}
+
+body.dark-mode .loading-content {
+    background: #1e293b;
+    color: #f1f5f9;
+}
+
+body.dark-mode .error {
+    background: #450a0a;
+    border-color: #991b1b;
+    color: #fecaca;
+}
+
+body.dark-mode .success {
+    background: #064e3b;
+    border-color: #166534;
+    color: #bbf7d0;
+}
+
+body.dark-mode .warning {
+    background: #431407;
+    border-color: #92400e;
+    color: #fed7aa;
+}
+
 /* Responsive improvements */
 @media (max-width: 420px) {
     body {
