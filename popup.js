@@ -95,6 +95,14 @@ async function loadSettings() {
             document.getElementById('soundEnabled').checked = settings.soundEnabled !== false;
             document.getElementById('notificationEnabled').checked = settings.notificationEnabled !== false;
             document.getElementById('checkInterval').value = settings.checkInterval || 1;
+            document.getElementById('darkMode').checked = settings.darkMode === true;
+            
+            // Apply dark mode
+            if (settings.darkMode) {
+                document.body.classList.add('dark-mode');
+            } else {
+                document.body.classList.remove('dark-mode');
+            }
         }
     } catch (error) {
         console.error('Error loading settings:', error);
@@ -108,11 +116,19 @@ async function saveSettings() {
         const settings = {
             soundEnabled: document.getElementById('soundEnabled').checked,
             notificationEnabled: document.getElementById('notificationEnabled').checked,
-            checkInterval: parseInt(document.getElementById('checkInterval').value)
+            checkInterval: parseInt(document.getElementById('checkInterval').value),
+            darkMode: document.getElementById('darkMode').checked
         };
 
         await chrome.storage.local.set({ settings });
         console.log('Settings saved:', settings);
+
+        // Apply dark mode
+        if (settings.darkMode) {
+            document.body.classList.add('dark-mode');
+        } else {
+            document.body.classList.remove('dark-mode');
+        }
 
         // Update alarm interval if changed
         if (settings.checkInterval !== 1) {
