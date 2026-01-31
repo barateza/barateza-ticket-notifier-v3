@@ -81,10 +81,25 @@
                     <textarea id="endpointUrl" placeholder="https://your-domain.zendesk.com/api/v2/search.json?query=..."></textarea>
                 </div>
                 <div class="form-actions">
-                    <button id="saveEndpoint" class="btn btn-primary">Save</button>
+                    <button id="testEndpoint" class="btn btn-outline">
+                        <span class="btn-icon">🔍</span>
+                        Test Connection
+                    </button>
+                    <button id="saveEndpoint" class="btn btn-primary">
+                        <span id="saveBtnIcon">💾</span>
+                        Save
+                    </button>
                     <button id="cancelEndpoint" class="btn btn-secondary">Cancel</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p>Loading...</p>
         </div>
     </div>
 
