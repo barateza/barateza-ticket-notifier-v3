@@ -90,8 +90,9 @@ async function checkAllEndpoints() {
   }
 }
 
-// Check a single endpoint
-async function checkEndpoint(endpoint, settings) {
+// Check a single endpoint with retry logic
+async function checkEndpoint(endpoint, settings, retryCount = 0) {
+  const maxRetries = 2;
   try {
     console.log(`Checking endpoint: ${endpoint.name}`);
 
@@ -110,11 +111,17 @@ async function checkEndpoint(endpoint, settings) {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
         'Cookie': cookies
-      }
+      },
+      signal: AbortSignal.timeout(10000) // 10 second timeout
     });
 
     if (!response.ok) {
       console.error(`HTTP ${response.status} for ${endpoint.name}`);
+      if (response.status >= 500 && retryCount < maxRetries) {
+        console.log(`Retrying ${endpoint.name} (${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+        return checkEndpoint(endpoint, settings, retryCount + 1);
+      }
       return;
     }
 
@@ -138,6 +145,11 @@ async function checkEndpoint(endpoint, settings) {
 
   } catch (error) {
     console.error(`Error checking ${endpoint.name}:`, error);
+    if (retryCount < maxRetries && !['AbortError', 'TypeError'].includes(error.name)) {
+      console.log(`Retrying ${endpoint.name} (${retryCount + 1}/${maxRetries})`);
+      await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+      return checkEndpoint(endpoint, settings, retryCount + 1);
+    }
   }
 }
 
