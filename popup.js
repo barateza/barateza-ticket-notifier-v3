@@ -284,6 +284,11 @@ async function handleSaveEndpoint() {
         return;
     }
 
+    if (name.length > 50) {
+        showError('Endpoint name must be less than 50 characters');
+        return;
+    }
+
     if (!url) {
         showError('Please enter a URL for the endpoint');
         return;
@@ -296,6 +301,18 @@ async function handleSaveEndpoint() {
             showError('URL must be a Zendesk domain (*.zendesk.com)');
             return;
         }
+        
+        // Validate URL is an API endpoint
+        if (!urlObj.pathname.includes('/api/')) {
+            showError('URL must be a Zendesk API endpoint');
+            return;
+        }
+        
+        // Validate search query parameter exists
+        if (!urlObj.searchParams.has('query')) {
+            showError('URL must include a search query parameter');
+            return;
+        }
     } catch (error) {
         showError('Please enter a valid URL');
         return;
@@ -304,11 +321,23 @@ async function handleSaveEndpoint() {
     try {
         const { endpoints = [] } = await chrome.storage.local.get(['endpoints']);
 
+        // Check for duplicate endpoints
+        const duplicate = endpoints.some(endpoint => 
+            endpoint.url.toLowerCase() === url.toLowerCase() || 
+            endpoint.name.toLowerCase() === name.toLowerCase()
+        );
+        
+        if (duplicate) {
+            showError('Endpoint with this name or URL already exists');
+            return;
+        }
+
         const newEndpoint = {
             id: Date.now(),
             name: name,
             url: url,
-            enabled: true
+            enabled: true,
+            createdAt: Date.now()
         };
 
         endpoints.push(newEndpoint);
@@ -322,6 +351,63 @@ async function handleSaveEndpoint() {
     } catch (error) {
         console.error('Error saving endpoint:', error);
         showError('Failed to save endpoint');
+    }
+}
+
+// Test endpoint connection
+async function testEndpoint(url) {
+    try {
+        const urlObj = new URL(url);
+        const domain = urlObj.hostname;
+        
+        // Get authentication cookies
+        const cookies = await chrome.cookies.getAll({
+            domain: domain
+        });
+        
+        const cookieString = cookies
+            .filter(cookie => 
+                cookie.name.includes('session') || 
+                cookie.name.includes('auth') || 
+                cookie.name.includes('_zendesk') ||
+                cookie.name.includes('csrf') ||
+                cookie.name === '_help_center_session'
+            )
+            .map(cookie => `${cookie.name}=${cookie.value}`)
+            .join('; ');
+
+        const response = await fetch(url, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'Cookie': cookieString
+            },
+            signal: AbortSignal.timeout(10000)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        
+        if (!data.count !== undefined) {
+            throw new Error('Invalid API response format');
+        }
+
+        return {
+            success: true,
+            count: data.count,
+            message: `Success: Found ${data.count} tickets`
+        };
+    } catch (error) {
+        console.error('Endpoint test error:', error);
+        return {
+            success: false,
+            message: error.message || 'Failed to connect to endpoint'
+        };
     }
 }
 
