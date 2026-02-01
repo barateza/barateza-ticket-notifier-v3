@@ -27,6 +27,53 @@
             <span class="btn-icon">⏸️</span>
             Pause
         </button>
+        <button id="snoozeBtn" class="btn btn-warning">
+            <span class="btn-icon">⏰</span>
+            Snooze
+        </button>
+    </div>
+
+    <!-- Snooze Modal -->
+    <div id="snoozeModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Snooze Notifications</h3>
+                <button id="closeSnoozeModal" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="snoozeDuration">Snooze duration:</label>
+                    <select id="snoozeDuration">
+                        <option value="1">1 minute</option>
+                        <option value="3">3 minutes</option>
+                        <option value="5">5 minutes</option>
+                        <option value="10">10 minutes</option>
+                        <option value="30">30 minutes</option>
+                        <option value="60">60 minutes</option>
+                        <option value="0">Until I turn back on</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button id="confirmSnooze" class="btn btn-primary">
+                        <span class="btn-icon">⏰</span>
+                        Snooze
+                    </button>
+                    <button id="cancelSnooze" class="btn btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Snooze Status -->
+    <div id="snoozeStatus" class="snooze-status hidden">
+        <div class="snooze-info">
+            <span class="snooze-icon">⏰</span>
+            <span class="snooze-text">Notifications snoozed</span>
+            <span class="snooze-remaining" id="snoozeRemaining"></span>
+        </div>
+        <button id="cancelSnoozeBtn" class="btn btn-small btn-danger">
+            Cancel Snooze
+        </button>
     </div>
 
     <div class="section">

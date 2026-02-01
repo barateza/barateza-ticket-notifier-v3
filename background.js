@@ -6,6 +6,7 @@ let isEnabled = true;
 let notificationEndpointMap = new Map(); // Map notificationId to endpoint URL
 let lastCheckTime = 0;
 const MIN_REFRESH_INTERVAL = 30000; // 30 seconds minimum between manual refreshes
+let snoozeEndTime = null; // Timestamp when snooze ends (null = not snoozed)
 
 // Initialize extension
 chrome.runtime.onInstalled.addListener(async (details) => {
@@ -53,8 +54,100 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     await chrome.storage.local.set(updates);
   }
 
+  // Load saved snooze state
+  const { snoozeState } = await chrome.storage.local.get(['snoozeState']);
+  if (snoozeState && snoozeState.endTime) {
+    snoozeEndTime = snoozeState.endTime;
+    if (snoozeEndTime > Date.now()) {
+      // Schedule alarm to clear snooze
+      const delay = snoozeEndTime - Date.now();
+      chrome.alarms.create('snoozeEnd', { delayInMinutes: delay / 60000 });
+    }
+  }
+
   startMonitoring();
 });
+
+// Handle snooze end alarm
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === 'snoozeEnd') {
+    await clearSnooze();
+  }
+});
+
+// Snooze notifications for a specific duration
+async function setSnooze(durationMinutes) {
+  const now = Date.now();
+  
+  if (durationMinutes === 0) {
+    // "Until I turn back on" - set snooze to a far future time
+    snoozeEndTime = now + (1000 * 60 * 60 * 24 * 365); // 1 year
+  } else {
+    snoozeEndTime = now + (1000 * 60 * durationMinutes);
+  }
+
+  // Save snooze state
+  await chrome.storage.local.set({
+    snoozeState: {
+      endTime: snoozeEndTime,
+      duration: durationMinutes
+    }
+  });
+
+  // Schedule alarm to clear snooze
+  if (durationMinutes > 0) {
+    chrome.alarms.create('snoozeEnd', { 
+      delayInMinutes: durationMinutes 
+    });
+  }
+
+  console.log(`Notifications snoozed ${durationMinutes === 0 ? 'indefinitely' : `for ${durationMinutes} minutes`}`);
+  
+  // Update badge to indicate snooze state
+  await updateBadge();
+  
+  return { success: true, endTime: snoozeEndTime };
+}
+
+// Clear snooze state
+async function clearSnooze() {
+  snoozeEndTime = null;
+  await chrome.storage.local.remove('snoozeState');
+  await chrome.alarms.clear('snoozeEnd');
+  console.log('Notifications no longer snoozed');
+  
+  // Update badge
+  await updateBadge();
+  
+  return { success: true };
+}
+
+// Check if notifications are currently snoozed
+function isSnoozed() {
+  if (!snoozeEndTime) return false;
+  
+  const now = Date.now();
+  if (now >= snoozeEndTime) {
+    // Auto-clear expired snooze
+    clearSnooze();
+    return false;
+  }
+  
+  return true;
+}
+
+// Get remaining snooze time in minutes
+function getRemainingSnoozeTime() {
+  if (!snoozeEndTime) return 0;
+  
+  const now = Date.now();
+  if (now >= snoozeEndTime) {
+    clearSnooze();
+    return 0;
+  }
+  
+  return Math.ceil((snoozeEndTime - now) / 60000); // minutes
+}
 
 // Start the monitoring process
 async function startMonitoring() {
@@ -193,6 +286,12 @@ async function getZendeskCookies(domain) {
 
 // Send notifications when new tickets are found
 async function notifyNewTickets(endpointName, newTickets, totalCount, settings, endpoint) {
+  // Check if notifications are snoozed
+  if (isSnoozed()) {
+    console.log(`Notifications are snoozed - skipping notification for ${endpointName}`);
+    return;
+  }
+
   console.log(`New tickets detected: ${newTickets} new tickets in ${endpointName}`);
 
   // Play sound notification
@@ -245,14 +344,25 @@ async function createOffscreen() {
 // Update extension badge with total ticket count
 async function updateBadge() {
   const totalCount = Array.from(endpointCounts.values()).reduce((sum, count) => sum + count, 0);
+  
+  // If notifications are snoozed, show special badge
+  if (isSnoozed()) {
+    await chrome.action.setBadgeText({
+      text: '⏰'
+    });
+    
+    await chrome.action.setBadgeBackgroundColor({
+      color: '#F39C12' // Orange
+    });
+  } else {
+    await chrome.action.setBadgeText({
+      text: totalCount > 0 ? totalCount.toString() : ''
+    });
 
-  await chrome.action.setBadgeText({
-    text: totalCount > 0 ? totalCount.toString() : ''
-  });
-
-  await chrome.action.setBadgeBackgroundColor({
-    color: totalCount > 0 ? '#FF6B6B' : '#4ECDC4'
-  });
+    await chrome.action.setBadgeBackgroundColor({
+      color: totalCount > 0 ? '#FF6B6B' : '#4ECDC4'
+    });
+  }
 }
 
 // Handle messages from popup
@@ -284,7 +394,29 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       sendResponse({ 
         enabled: isEnabled,
         counts: Array.from(endpointCounts.entries()),
-        lastCheck: lastCheckTime
+        lastCheck: lastCheckTime,
+        isSnoozed: isSnoozed(),
+        snoozeEndTime: snoozeEndTime
+      });
+      break;
+
+    case 'setSnooze':
+      setSnooze(request.duration).then(response => {
+        sendResponse(response);
+      });
+      return true; // Keep channel open for async response
+      
+    case 'clearSnooze':
+      clearSnooze().then(response => {
+        sendResponse(response);
+      });
+      return true; // Keep channel open for async response
+      
+    case 'getSnoozeStatus':
+      sendResponse({
+        isSnoozed: isSnoozed(),
+        snoozeEndTime: snoozeEndTime,
+        remainingTime: getRemainingSnoozeTime()
       });
       break;
 

@@ -418,6 +418,67 @@ body {
     background: #e67e22;
 }
 
+.btn-warning {
+    background: #f39c12;
+    color: white;
+}
+
+.btn-warning:hover {
+    background: #e67e22;
+}
+
+.btn-small {
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
+/* Snooze status styles */
+.snooze-status {
+    background: #fef5e7;
+    border: 1px solid #f9e79f;
+    border-radius: 6px;
+    padding: 12px;
+    margin: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.dark-mode .snooze-status {
+    background: #4a3728;
+    border-color: #f39c12;
+}
+
+.snooze-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.snooze-icon {
+    font-size: 16px;
+}
+
+.snooze-text {
+    font-weight: 500;
+    color: #856404;
+}
+
+.dark-mode .snooze-text {
+    color: #f39c12;
+}
+
+.snooze-remaining {
+    font-size: 11px;
+    color: #95a5a6;
+}
+
+.dark-mode .snooze-remaining {
+    color: #7f8c8d;
+}
+
 /* Dark mode styles */
 body.dark-mode {
     background: linear-gradient(135deg, #1e272e 0%, #3742fa 100%);

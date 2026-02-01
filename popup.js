@@ -8,12 +8,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadSettings();
     await loadEndpoints();
     await updateStatus();
+    await updateSnoozeStatus();
 
     // Set up event listeners
     setupEventListeners();
 
     // Update last check time
     updateLastCheckTime();
+
+    // Start snooze timer to update remaining time display
+    startSnoozeTimer();
 });
 
 // Set up all event listeners
@@ -21,6 +25,7 @@ function setupEventListeners() {
     // Control buttons
     document.getElementById('refreshBtn').addEventListener('click', handleRefreshNow);
     document.getElementById('toggleBtn').addEventListener('click', handleToggleMonitoring);
+    document.getElementById('snoozeBtn').addEventListener('click', showSnoozeModal);
 
     // Settings
     document.getElementById('soundEnabled').addEventListener('change', saveSettings);
@@ -35,12 +40,132 @@ function setupEventListeners() {
     document.getElementById('saveEndpoint').addEventListener('click', handleSaveEndpoint);
     document.getElementById('testEndpoint').addEventListener('click', handleTestEndpoint);
 
+    // Snooze management
+    document.getElementById('closeSnoozeModal').addEventListener('click', hideSnoozeModal);
+    document.getElementById('cancelSnooze').addEventListener('click', hideSnoozeModal);
+    document.getElementById('confirmSnooze').addEventListener('click', handleConfirmSnooze);
+    document.getElementById('cancelSnoozeBtn').addEventListener('click', handleCancelSnooze);
+
     // Close modal when clicking outside
     document.getElementById('addEndpointModal').addEventListener('click', (e) => {
         if (e.target.id === 'addEndpointModal') {
             hideAddEndpointModal();
         }
     });
+    document.getElementById('snoozeModal').addEventListener('click', (e) => {
+        if (e.target.id === 'snoozeModal') {
+            hideSnoozeModal();
+        }
+    });
+}
+
+// Show snooze modal
+function showSnoozeModal() {
+    document.getElementById('snoozeModal').classList.remove('hidden');
+    document.getElementById('snoozeDuration').focus();
+}
+
+// Hide snooze modal
+function hideSnoozeModal() {
+    document.getElementById('snoozeModal').classList.add('hidden');
+}
+
+// Handle confirm snooze
+async function handleConfirmSnooze() {
+    const duration = parseInt(document.getElementById('snoozeDuration').value);
+    try {
+        showLoading('Snoozing notifications...');
+        const response = await chrome.runtime.sendMessage({
+            action: 'setSnooze',
+            duration: duration
+        });
+        
+        if (response.success) {
+            hideSnoozeModal();
+            showSuccess(duration === 0 ? 'Notifications snoozed indefinitely' : `Notifications snoozed for ${duration} minutes`);
+            await updateSnoozeStatus();
+        } else {
+            showError('Failed to snooze notifications');
+        }
+    } catch (error) {
+        console.error('Error snoozing notifications:', error);
+        showError('Failed to snooze notifications');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Handle cancel snooze
+async function handleCancelSnooze() {
+    try {
+        showLoading('Canceling snooze...');
+        const response = await chrome.runtime.sendMessage({
+            action: 'clearSnooze'
+        });
+        
+        if (response.success) {
+            showSuccess('Notifications no longer snoozed');
+            await updateSnoozeStatus();
+        } else {
+            showError('Failed to cancel snooze');
+        }
+    } catch (error) {
+        console.error('Error canceling snooze:', error);
+        showError('Failed to cancel snooze');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Update snooze status display
+async function updateSnoozeStatus() {
+    try {
+        const response = await chrome.runtime.sendMessage({
+            action: 'getSnoozeStatus'
+        });
+        
+        const snoozeStatus = document.getElementById('snoozeStatus');
+        const snoozeRemaining = document.getElementById('snoozeRemaining');
+        
+        if (response.isSnoozed) {
+            snoozeStatus.classList.remove('hidden');
+            if (response.remainingTime === 0) {
+                snoozeRemaining.textContent = 'Until I turn back on';
+            } else if (response.remainingTime === 1) {
+                snoozeRemaining.textContent = '1 minute remaining';
+            } else if (response.remainingTime < 60) {
+                snoozeRemaining.textContent = `${response.remainingTime} minutes remaining`;
+            } else {
+                const hours = Math.floor(response.remainingTime / 60);
+                const minutes = response.remainingTime % 60;
+                snoozeRemaining.textContent = `${hours}h ${minutes}m remaining`;
+            }
+        } else {
+            snoozeStatus.classList.add('hidden');
+        }
+    } catch (error) {
+        console.error('Error getting snooze status:', error);
+    }
+}
+
+// Start snooze timer to update remaining time
+function startSnoozeTimer() {
+    const timer = setInterval(async () => {
+        await updateSnoozeStatus();
+        
+        // Check if snooze is still active
+        try {
+            const response = await chrome.runtime.sendMessage({
+                action: 'getSnoozeStatus'
+            });
+            
+            if (!response.isSnoozed) {
+                clearInterval(timer);
+            }
+        } catch (error) {
+            clearInterval(timer);
+        }
+    }, 60000); // Update every minute
 }
 
 // Handle refresh now button with debounce
