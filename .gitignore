@@ -1,8 +1,7 @@
 .DS_Store
-barateza-ticket-notifier.zipnode_modules/
+barateza-ticket-notifier.zip
+node_modules/
 coverage/
 dist/
 *.log
 npm-debug.log*
-barateza-ticket-notifier.zip
-/node_modules
