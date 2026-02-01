@@ -189,6 +189,10 @@ The README contains status badges that require periodic updates:
 
 ### Dynamic Badges (Auto-updated by GitHub Actions)
 - **Build Status Badge**: Uses GitHub native workflow badge—automatically reflects current CI/CD status. No manual updates needed.
+- **Dependabot Badge**: Automatically enabled when Dependabot scans for dependency updates. Status reflects in [Security] → [Dependabot alerts]. No manual updates needed.
+- **CodeQL Badge**: Automatically enabled when CodeQL runs code analysis. Status reflects in [Security] → [Code Scanning]. No manual updates needed.
+  - **View Results**: Repository [Security] → [Code Scanning] tab shows all CodeQL analysis results and vulnerabilities found
+  - **Vulnerabilities Remediation**: Fixed vulnerabilities appear in [Security] → [Dependabot alerts] with automatic PR creation when updates available
 
 ### Static Badges (Manual Update Required)
 - **Test Count Badge**: Currently shows "69 passing". **Update this badge on every version bump or when test count changes:**
