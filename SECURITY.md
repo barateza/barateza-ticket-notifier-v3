@@ -18,7 +18,7 @@ We take security seriously. If you discover a security vulnerability in the Zend
 ### How to Report
 
 1. **Do not** open a public GitHub issue for security vulnerabilities
-2. Report privately via GitHub Security Advisories: https://github.com/barateza/barateza-ticket-notifier-v3/security/advisories
+2. Report privately via GitHub Security Advisories: <https://github.com/barateza/barateza-ticket-notifier-v3/security/advisories>
 3. Include the following information:
    - Description of the vulnerability
    - Steps to reproduce (if applicable)
