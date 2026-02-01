@@ -1,2 +1,27 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Files to exclude from release archives
+.babelrc export-ignore
+jest.config.js export-ignore
+jest.setup.js export-ignore
+__tests__/ export-ignore
+coverage/ export-ignore
+node_modules/ export-ignore
+package-lock.json export-ignore
+README.md export-ignore
+RELEASE.md export-ignore
+TESTING.md export-ignore
+PHASES.md export-ignore
+COVERAGE_SETUP.md export-ignore
+.github/ export-ignore
+.vscode/ export-ignore
+.idea/ export-ignore
+.DS_Store export-ignore
+.env export-ignore
+.env.local export-ignore
+.env.*.local export-ignore
+*.log export-ignore
+npm-debug.log* export-ignore
+yarn-debug.log* export-ignore
+yarn-error.log* export-ignore
