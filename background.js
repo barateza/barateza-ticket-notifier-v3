@@ -57,11 +57,17 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   // Load saved snooze state
   const { snoozeState } = await chrome.storage.local.get(['snoozeState']);
   if (snoozeState && snoozeState.endTime) {
-    snoozeEndTime = snoozeState.endTime;
-    if (snoozeEndTime > Date.now()) {
+    // Validate that the snooze hasn't expired
+    if (snoozeState.endTime > Date.now()) {
+      snoozeEndTime = snoozeState.endTime;
       // Schedule alarm to clear snooze
       const delay = snoozeEndTime - Date.now();
       chrome.alarms.create('snoozeEnd', { delayInMinutes: delay / 60000 });
+      console.log('Restored snooze state from storage, ending at:', new Date(snoozeEndTime));
+    } else {
+      // Snooze has expired, clean it up
+      console.log('Snooze state in storage has expired, cleaning up');
+      await chrome.storage.local.remove('snoozeState');
     }
   }
 
@@ -415,10 +421,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         break;
         
       case 'getSnoozeStatus':
+        const isSnoozedStatus = isSnoozed();
+        const remainingTime = getRemainingSnoozeTime();
+        console.log('getSnoozeStatus: isSnoozed=', isSnoozedStatus, 'snoozeEndTime=', snoozeEndTime, 'remainingTime=', remainingTime);
         sendResponse({
-          isSnoozed: isSnoozed(),
+          isSnoozed: isSnoozedStatus,
           snoozeEndTime: snoozeEndTime,
-          remainingTime: getRemainingSnoozeTime()
+          remainingTime: remainingTime
         });
         break;
 

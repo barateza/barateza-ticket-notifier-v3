@@ -446,6 +446,10 @@ body {
     gap: 8px;
 }
 
+.snooze-status.hidden {
+    display: none;
+}
+
 .dark-mode .snooze-status {
     background: #4a3728;
     border-color: #f39c12;

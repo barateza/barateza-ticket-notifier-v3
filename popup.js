@@ -131,10 +131,13 @@ async function updateSnoozeStatus() {
             action: 'getSnoozeStatus'
         });
         
+        console.log('updateSnoozeStatus received:', response);
+        
         const snoozeStatus = document.getElementById('snoozeStatus');
         const snoozeRemaining = document.getElementById('snoozeRemaining');
         
         if (response.isSnoozed) {
+            console.log('Snooze is active, showing banner');
             snoozeStatus.classList.remove('hidden');
             if (response.remainingTime === 0) {
                 snoozeRemaining.textContent = 'Until I turn back on';
@@ -148,6 +151,7 @@ async function updateSnoozeStatus() {
                 snoozeRemaining.textContent = `${hours}h ${minutes}m remaining`;
             }
         } else {
+            console.log('Snooze is not active, hiding banner');
             snoozeStatus.classList.add('hidden');
         }
     } catch (error) {
