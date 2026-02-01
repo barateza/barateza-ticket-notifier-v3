@@ -414,3 +414,129 @@ async function checkAllEndpoints() {
 
 **Requires adding `group` field to endpoint objects in storage (defaults to 'normal')**.
 
+---
+
+## Documentation & Maintenance Strategy
+
+### Core Documentation Structure
+
+The project maintains minimal, consolidated documentation (4 core files):
+
+| File | Purpose | Audience |
+|------|---------|----------|
+| README.md | Primary: Features, Installation, Setup, API Reference, Troubleshooting | End Users & Developers |
+| TESTING.md | Testing: Test Commands, Phase History, Coverage Reports, CI/CD Integration | Developers & QA |
+| RELEASE.md | Release Workflow: Versioning Strategy, Release Process, GitHub Actions Integration | Release Engineers |
+| install-guide.html | Visual Installation Guide: Step-by-step HTML format with styling | Visual Learners |
+
+**Documentation Removed** (Consolidated or Completed):
+- `PHASES.md` - Removed (roadmap complete; phase history preserved in TESTING.md collapsed reference)
+- `COVERAGE_SETUP.md` - Removed (merged into TESTING.md)
+- `FINAL_REPORT.md` - Removed (historical completion report, no ongoing reference)
+- `RELEASE_TEST.md` - Removed (v3.1.0 specific; reference RELEASE.md instead)
+
+### Test Badge Accuracy & Updates
+
+**Current Badge**: `tests-68%20passing` in README.md
+
+The test count badge (`🧪 Tests Passing`) reflects actual passing test count: **68 tests** (21 Phase 1 + 27 Phase 2 + 20 Phase 3).
+
+**When to Update**:
+- On every new version release (recommended)
+- After running significant test additions
+- Before creating version tags
+
+**How to Update Badge**:
+
+Run tests and capture count:
+```bash
+npm test 2>&1 | grep "Tests:"
+```
+
+Update README.md badge URL with **exact sed pattern**:
+```bash
+sed -i '' 's/tests-68%20passing/tests-NEW_COUNT%20passing/g' README.md
+```
+
+**Badge Location in README.md**:
+```markdown
+[![🧪 Tests Passing](https://img.shields.io/badge/tests-68%20passing-brightgreen?style=flat-square&logo=jest)]
+```
+
+### Pre-Release Documentation Checklist
+
+**Before creating version tags or releases**:
+
+1. **Run tests**: `npm test 2>&1 | grep "Tests:"`
+2. **Update test badge** if count changed: `sed -i '' 's/tests-68%20passing/tests-NEW_COUNT%20passing/g' README.md`
+3. **Verify install-guide.html** matches README.md:
+   - [ ] Installation methods match in order and detail
+   - [ ] All file names are current
+   - [ ] Feature descriptions are consistent
+   - [ ] Chrome extension URL `chrome://extensions/` is correct
+   - [ ] No hardcoded Zendesk domains (use placeholders)
+4. **Validate documentation links**:
+   ```bash
+   grep -r "PHASES.md\|COVERAGE_SETUP.md\|FINAL_REPORT.md\|RELEASE_TEST.md" . --include="*.md" --include="*.html" 2>/dev/null | grep -v ".git"
+   ```
+5. **Review RELEASE.md** for outdated version references
+
+### install-guide.html Maintenance Checklist
+
+**On each release**: Verify install-guide.html matches README.md
+
+**Installation Methods**:
+- [ ] Steps match README.md in order and detail
+- [ ] File names listed are current (manifest.json, background.js, popup.html, popup.css, popup.js, icons)
+- [ ] `chrome://extensions/` URL is correct
+- [ ] Developer mode instructions match Chrome UI
+
+**Feature Descriptions**:
+- [ ] Feature names are identical between files
+- [ ] Descriptions are consistent
+- [ ] Any new README.md features are reflected in HTML
+
+**Troubleshooting & Links**:
+- [ ] install-guide.html links to README.md troubleshooting
+- [ ] Common issues mentioned in both
+- [ ] Installation verification steps present
+
+**Domain & API References**:
+- [ ] Zendesk domains use placeholders (`your-domain.zendesk.com`)
+- [ ] API endpoint format current (`/api/v2/search.json`)
+- [ ] Search examples valid for current Zendesk API
+- [ ] No hardcoded specific instances
+
+**Version Info**:
+- [ ] No specific version numbers in install-guide.html (v3.x.x)
+- [ ] README.md Changelog is current
+- [ ] Installation steps are generic (work for any version)
+
+### Documentation Best Practices
+
+1. **README.md as single source of truth** - Features, setup, API reference, troubleshooting
+2. **Link between documents** - Cross-reference README.md → TESTING.md → RELEASE.md
+3. **Update install-guide.html on releases** - Verify HTML matches README.md exactly
+4. **Test badge accuracy** - Run `npm test` before bumping version, update count immediately
+5. **Delete outdated docs entirely** - No archive folder; historical info in TESTING.md
+6. **Validate links regularly** - Search for references to deleted files in remaining docs
+
+### Quick Reference Commands
+
+```bash
+# View test results and get count
+npm test 2>&1 | grep "Tests:"
+
+# Update test badge (example: 68 → NEW_COUNT)
+sed -i '' 's/tests-68%20passing/tests-NEW_COUNT%20passing/g' README.md
+
+# Verify no broken documentation links
+grep -r "PHASES.md\|COVERAGE_SETUP.md\|FINAL_REPORT.md\|RELEASE_TEST.md" . --include="*.md" --include="*.html" 2>/dev/null | grep -v ".git"
+```
+
+---
+
+**Last Updated**: February 1, 2026
+**Documentation Status**: Consolidated to 4 core files
+**Current Version**: v3.1.0
+**Test Count**: 68 passing

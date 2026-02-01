@@ -2,7 +2,7 @@
 
 A Chrome extension that monitors Zendesk ticket endpoints and notifies you with sound and/or popup notifications when new tickets are found. Compatible with Manifest V3 and uses existing browser cookies for authentication.
 
-[![🧪 Tests Passing](https://img.shields.io/badge/tests-69%20passing-brightgreen?style=flat-square&logo=jest)](https://github.com/gilsonsiqueira/barateza-ticket-notifier-v3/__tests__/)
+[![🧪 Tests Passing](https://img.shields.io/badge/tests-68%20passing-brightgreen?style=flat-square&logo=jest)](https://github.com/gilsonsiqueira/barateza-ticket-notifier-v3/__tests__/)
 [![✅ Build Status](https://github.com/gilsonsiqueira/barateza-ticket-notifier-v3/actions/workflows/coverage.yml/badge.svg)](https://github.com/gilsonsiqueira/barateza-ticket-notifier-v3/actions/workflows/coverage.yml)
 [![📦 Node Support](https://img.shields.io/badge/node-%E2%89%A518.0-brightgreen?style=flat-square)](#)
 [![🔷 Manifest V3](https://img.shields.io/badge/Manifest-V3-blue?style=flat-square)](#)
@@ -15,7 +15,8 @@ A Chrome extension that monitors Zendesk ticket endpoints and notifies you with 
 - ⚙️ **Multiple Endpoints** - Monitor multiple Zendesk search queries simultaneously
 - ⏱️ **Configurable Intervals** - Check every 1-15 minutes (minimum 60 seconds)
 - 🔄 **Manual Refresh** - Force refresh all endpoints instantly
-- 📊 **Live Badge Counter** - Shows total ticket count on extension icon
+- � **Snooze Notifications** - Pause notifications for a configurable duration (or indefinitely)
+- �📊 **Live Badge Counter** - Shows total ticket count on extension icon
 - 🎛️ **Easy Management** - Simple popup interface for adding/removing endpoints
 
 ## Installation
@@ -23,26 +24,18 @@ A Chrome extension that monitors Zendesk ticket endpoints and notifies you with 
 ### Method 1: Load Unpacked Extension (Development)
 
 1. **Download the extension files** to a folder on your computer
-2. **Generate the icons**:
-   - Open `icons/icon-generator.html` in your browser
-   - Right-click each canvas and save as PNG:
-     - 16x16 canvas → `icon16.png`
-     - 48x48 canvas → `icon48.png`
-     - 128x128 canvas → `icon128.png`
-   - Save all PNG files in the `icons/` directory
-3. **Load the extension**:
+2. **Load the extension**:
    - Open Chrome and go to `chrome://extensions/`
    - Enable "Developer mode" (toggle in top right)
    - Click "Load unpacked"
    - Select the folder containing the extension files
-4. **Verify installation** - You should see the Zendesk Monitor icon in your toolbar
+3. **Verify installation** - You should see the Zendesk Monitor icon in your toolbar
 
 ### Method 2: Pack Extension (Advanced)
 
-1. Follow steps 1-2 above to prepare files
-2. In `chrome://extensions/`, click "Pack extension"
-3. Select the extension directory
-4. Install the generated `.crx` file
+1. In `chrome://extensions/`, click "Pack extension"
+2. Select the extension directory
+3. Install the generated `.crx` file
 
 ## Setup & Configuration
 
@@ -80,6 +73,15 @@ https://your-domain.zendesk.com/api/v2/search.json?query=type:ticket+created>202
 - **Sound Notifications**: Enable/disable notification sounds
 - **Browser Notifications**: Enable/disable popup notifications
 - **Check Interval**: Set how often to check for new tickets (1-15 minutes)
+- **Dark Mode**: Toggle between light and dark theme
+
+### Snooze Notifications
+
+Temporarily pause all notifications for a configurable duration:
+- **Duration Options**: 15, 30, 60 minutes, or indefinitely ("until I turn back on")
+- **Countdown Display**: Shows remaining snooze time in the popup
+- **Manual Cancel**: Clear snooze at any time to resume notifications immediately
+- **Use Case**: Perfect for meetings, focus time, or when you'll handle tickets manually
 
 ## How It Works
 
@@ -92,16 +94,24 @@ The extension uses your existing Zendesk session cookies for authentication. Thi
 
 ### Monitoring Process
 1. **Background Service Worker** runs periodic checks using Chrome Alarms API
-2. **Cookie Retrieval** gets your Zendesk authentication cookies
-3. **API Requests** are made to your configured endpoints with cookies
-4. **Count Tracking** compares new results with previous counts
-5. **Notifications** are triggered when counts increase
+2. **Offscreen Document** (Manifest V3 requirement) handles audio playback via Web Audio API
+3. **Cookie Retrieval** gets your Zendesk authentication cookies
+4. **API Requests** are made to your configured endpoints with cookies
+5. **Count Tracking** compares new results with previous counts
+6. **Notifications** are triggered when counts increase (unless snoozed)
 
 ### Notification System
 - **Badge**: Extension icon shows total ticket count across all endpoints
-- **Sound**: Configurable audio notification using Web Audio API
+- **Sound**: Configurable audio notification using Web Audio API (offscreen document)
 - **Popup**: Browser notification with ticket details
 - **Click Action**: Notifications open your Zendesk dashboard
+- **Snooze**: Temporarily pause all notifications
+
+### Manifest V3 Architecture
+- **Service Worker** runs in background for monitoring and notification management
+- **Offscreen Document** required for audio playback (Manifest V3 constraint)
+- **Chrome Storage API** for persistent settings and endpoint configuration
+- **Chrome Alarms API** for reliable periodic checks (survives extension reload)
 
 ## Troubleshooting
 
@@ -143,6 +153,13 @@ https://your-domain.zendesk.com/api/v2/search.json?query=SEARCH_QUERY
 - `group:group_name` - Group assignment
 - `created>YYYY-MM-DD` - Creation date
 - `updated>YYYY-MM-DD` - Last update date
+- `has_incidents:true` - Tickets with related incidents
+
+### URL Encoding
+When adding endpoints manually:
+- Spaces in query parameters become `+` (automatically handled by most tools)
+- Special characters should be URL-encoded (e.g., `&` → `%26`)
+- Group/assignee names with spaces use quotes: `group:"support team"`
 
 ### Expected Response Format
 ```json
@@ -168,16 +185,16 @@ The extension monitors the `count` field for changes.
 ```
 zendesk-ticket-monitor/
 ├── manifest.json          # Extension configuration
-├── background.js           # Service worker for monitoring
+├── background.js          # Service worker for monitoring
+├── offscreen.html         # Offscreen document for audio (Manifest V3)
+├── offscreen.js           # Audio playback via Web Audio API
 ├── popup.html             # Extension popup interface
 ├── popup.css              # Popup styling
 ├── popup.js               # Popup functionality
 ├── icons/
 │   ├── icon16.png         # 16x16 icon
 │   ├── icon48.png         # 48x48 icon
-│   ├── icon128.png        # 128x128 icon
-│   ├── icon.svg           # Source SVG icon
-│   └── icon-generator.html # Tool to generate PNG icons
+│   └── icon128.png        # 128x128 icon
 └── README.md              # This file
 ```
 
@@ -190,6 +207,14 @@ Feel free to submit issues, feature requests, or pull requests to improve this e
 This project is provided as-is for educational and development purposes.
 
 ## Changelog
+
+### Version 3.0.0
+- Snooze notification feature (configurable duration or indefinite)
+- Dark mode theme support
+- Enhanced error handling and recovery
+- Comprehensive test coverage (68+ passing tests)
+- Improved UI with better status indicators
+- Bug fixes and performance optimizations
 
 ### Version 1.0
 - Initial release

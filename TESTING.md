@@ -4,7 +4,7 @@
 
 This document outlines the complete testing strategy and current status for the Zendesk Ticket Monitor Chrome Extension.
 
-**🎉 Status**: Phases 1-3 Complete - 69 Tests Passing
+**🎉 Status**: Phases 1-3 Complete - **68 Tests Passing** (21 + 27 + 20)
 
 ## Quick Start
 
@@ -34,7 +34,7 @@ npm run coverage:report
 ```
 Test Files:      3 files
 Test Suites:     3 passed, 3 total
-Total Tests:     69 passed, 69 total
+Total Tests:     68 passed, 68 total
 Duration:        ~1.2 seconds
 Last Run:        February 1, 2026
 ```
@@ -47,6 +47,57 @@ Last Run:        February 1, 2026
 | 2 | popup.js | 27 ✅ | Complete |
 | 3 | Integration | 20 ✅ | Complete |
 | **Total** | **All Modules** | **68 ✅** | **Complete** |
+
+### Testing Phases Reference
+
+<details>
+<summary><strong>Phase Summary (Click to expand)</strong></summary>
+
+#### Phase 1: Background Service Worker Unit Tests ✅
+**Status**: Delivered | **Tests**: 21 | **Coverage Area**: background.js (service worker logic)
+
+Core functionality tested:
+- Cookie Authentication (3 tests) - Extract Zendesk auth cookies, handle missing cookies, error handling
+- Endpoint Validation (3 tests) - URL format validation, prevent duplicates, name validation (1-100 chars)
+- Count Comparison Logic (4 tests) - Detect increases, ignore same/decreasing counts, handle first check
+- API Response Parsing (3 tests) - Extract count, handle invalid responses, handle null/undefined safely
+- Snooze State Management (3 tests) - Block notifications during snooze, allow after expiration, auto-clear
+- Storage Persistence (3 tests) - Read/persist endpoints and settings from chrome.storage.local
+- Endpoint Enable/Disable (2 tests) - Toggle state, skip disabled endpoints in checks
+
+#### Phase 2: Popup UI State Management Tests ✅
+**Status**: Delivered | **Tests**: 27 | **Coverage Area**: popup.js (user interface & event handling)
+
+UI and interaction testing:
+- Form Validation (5 tests) - URL format, name validation, duplicate detection, error display, form clearing
+- DOM Rendering (6 tests) - Endpoint list rendering, display names/URLs, enabled/disabled status, empty state
+- Event Handlers (8 tests) - Add endpoint, delete endpoint, toggle enable/disable, save settings, refresh now
+- Snooze Controls (5 tests) - Apply duration (15/30/60 min), clear snooze, display countdown, update display
+- Settings Persistence (3 tests) - Load settings on popup open, save modified settings, handle corrupted data
+
+#### Phase 3: Integration Tests ✅
+**Status**: Delivered | **Tests**: 20 | **Coverage Area**: Cross-module workflows
+
+End-to-end workflows:
+- Endpoint Monitoring Cycle (5 tests) - Complete cycle with new tickets, no changes, decreased count, multiple endpoints, error recovery
+- Notification Flow (4 tests) - Ticket arrival → notification, click → open Zendesk, sound plays, notification cleared
+- Message Passing (3 tests) - Popup → background communication, background → popup updates, error handling
+- Snooze Lifecycle (6 tests) - Set snooze blocks notifications, timer expiration resumes, persistence across refresh
+- Complex Scenarios (2 tests) - Multiple endpoints with different statuses, rapid count changes
+
+#### Phase 4: E2E Testing (Optional) - Not Started
+**Target**: 10-15 E2E tests with Playwright | **Status**: Available for future work
+
+Would include:
+- Real Chrome extension loading and installation
+- Real Zendesk API integration (sandbox)
+- Actual browser notification display and interactions
+- Snooze functionality in real environment
+- Error scenarios with real API failures
+
+**Completion Date**: January 31 - February 1, 2026
+
+</details>
 
 ### Test Files
 
@@ -139,11 +190,8 @@ Since tests focus on business logic and workflows (not importing source files fo
 
 ---
 
-## Testing Phases Documentation
+## Phase Status Summary
 
-For detailed information about all 4 testing phases, coverage roadmap, and future plans, see [PHASES.md](PHASES.md).
-
-### Phase Status
 - ✅ **Phase 1**: background.js unit tests (21 tests) - COMPLETE
 - ✅ **Phase 2**: popup.js unit tests (27 tests) - COMPLETE  
 - ✅ **Phase 3**: Integration tests (20 tests) - COMPLETE
@@ -154,43 +202,14 @@ For detailed information about all 4 testing phases, coverage roadmap, and futur
 ## Release Information
 
 **Latest Release**: v3.1.0 (February 1, 2026)
-- All 69 tests passing before release
+- All 68 tests passing before release
 - GitHub Actions workflow tested and verified
 - Zip package created with extension files only
 - Installation guide available in [RELEASE.md](RELEASE.md)
 
-See [RELEASE_TEST.md](RELEASE_TEST.md) for workflow testing details.
+See [RELEASE.md](RELEASE.md) for release workflow details.
 
 ---
-Critical functions for endpoint monitoring:
-- Cookie extraction & authentication
-- Endpoint validation (URL format, duplicates, naming)
-- Count comparison logic
-- API response parsing
-- Snooze state management
-- Storage persistence
-
-**Target Coverage**: 80%+
-**Current Tests**: 21
-**Status**: All tests passing
-
-### Phase 2: UI State Management (popup.js) - PLANNED
-Popup interface and user interactions:
-- Form validation (endpoint creation)
-- Settings persistence
-- Endpoint list rendering
-- Snooze controls
-- Toast notifications
-
-### Phase 3: Integration Tests - PLANNED
-Full workflows:
-- Endpoint monitoring cycle
-- Notification flow
-- Message passing between background & popup
-- Snooze lifecycle with timer updates
-
-### Phase 4: E2E Testing (Optional) - PLANNED
-Real Chrome extension testing using Playwright
 
 ## Chrome API Mocking
 
