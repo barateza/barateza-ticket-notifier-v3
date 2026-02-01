@@ -66,7 +66,7 @@ describe('Popup UI - Phase 2', () => {
       const isValidUrl = (url) => {
         try {
           const parsed = new URL(url);
-          return parsed.protocol === 'https:' && parsed.hostname.includes('zendesk.com') && parsed.pathname.includes('/api/v2/search');
+          return parsed.protocol === 'https:' && parsed.hostname.endsWith('zendesk.com') && parsed.pathname.includes('/api/v2/search');
         } catch {
           return false;
         }
@@ -269,7 +269,7 @@ describe('Popup UI - Phase 2', () => {
       const testEndpoint = (url) => {
         try {
           const parsed = new URL(url);
-          return parsed.protocol === 'https:' && parsed.hostname.includes('zendesk.com');
+          return parsed.protocol === 'https:' && parsed.hostname.endsWith('zendesk.com');
         } catch {
           return false;
         }

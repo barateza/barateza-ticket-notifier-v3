@@ -103,7 +103,7 @@ describe('Background Service Worker - High Priority Functions', () => {
       const isValidUrl = (url) => {
         try {
           const parsed = new URL(url);
-          return parsed.protocol === 'https:' && parsed.hostname.includes('zendesk.com');
+          return parsed.protocol === 'https:' && parsed.hostname.endsWith('zendesk.com');
         } catch {
           return false;
         }
