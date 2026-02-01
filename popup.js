@@ -111,8 +111,8 @@ async function handleCancelSnooze() {
         });
         
         if (response.success) {
-            showSuccess('Notifications no longer snoozed');
             await updateSnoozeStatus();
+            showSuccess('Notifications no longer snoozed');
         } else {
             showError('Failed to cancel snooze');
         }
@@ -152,9 +152,6 @@ async function updateSnoozeStatus() {
         }
     } catch (error) {
         console.error('Error getting snooze status:', error);
-    } finally {
-        // Ensure loading indicator is always hidden
-        hideLoading();
     }
 }
 
