@@ -203,7 +203,7 @@ async function handleTestEndpoint() {
     
     try {
         const urlObj = new URL(url);
-        if (!urlObj.hostname.includes('zendesk.com')) {
+        if (!urlObj.hostname.endsWith('.zendesk.com')) {
             showError('URL must be a Zendesk domain (*.zendesk.com)');
             return;
         }
@@ -495,7 +495,7 @@ async function handleSaveEndpoint() {
     // Validate URL format
     try {
         const urlObj = new URL(url);
-        if (!urlObj.hostname.includes('zendesk.com')) {
+        if (!urlObj.hostname.endsWith('.zendesk.com')) {
             showError('URL must be a Zendesk domain (*.zendesk.com)');
             return;
         }
