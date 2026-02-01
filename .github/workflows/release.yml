@@ -67,8 +67,6 @@ jobs:
       
       - name: Create Release with Asset
         uses: softprops/action-gh-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}.zip
           body: |
@@ -95,8 +93,5 @@ jobs:
             - icons/ (Extension icons)
           draft: false
           prerelease: false
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}.zip
-          asset_name: barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}.zip
-          asset_content_type: application/zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
