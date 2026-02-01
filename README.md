@@ -4,8 +4,8 @@ A Chrome extension that monitors Zendesk ticket endpoints and notifies you with 
 
 [![Tests Passing](https://img.shields.io/badge/tests-68%20passing-brightgreen?style=flat-square&logo=jest)](https://github.com/gilsonsiqueira/barateza-ticket-notifier-v3/__tests__/)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen?style=flat-square)](https://github.com/gilsonsiqueira/barateza-ticket-notifier-v3/actions)
-[![Node Support](https://img.shields.io/badge/node-%E2%89%A518.0-brightgreen?style=flat-square)](#)
-[![Manifest V3](https://img.shields.io/badge/Manifest-V3-blue?style=flat-square)](#)
+![Node Support](https://img.shields.io/badge/node-%E2%89%A518.0-brightgreen?style=flat-square)
+![Manifest V3](https://img.shields.io/badge/Manifest-V3-blue?style=flat-square)
 
 ## Quick Start
 
@@ -65,7 +65,7 @@ A Chrome extension that monitors Zendesk ticket endpoints and notifies you with 
 
 The extension monitors Zendesk Search API endpoints. Here are some examples:
 
-```
+``` text
 # New unassigned tickets in AMER group
 https://your-domain.zendesk.com/api/v2/search.json?query=type:ticket+group:amer+assignee:none+status:new
 
@@ -91,6 +91,7 @@ https://your-domain.zendesk.com/api/v2/search.json?query=type:ticket+created>202
 ### Snooze Notifications
 
 Temporarily pause all notifications for a configurable duration:
+
 - **Duration Options**: 15, 30, 60 minutes, or indefinitely ("until I turn back on")
 - **Countdown Display**: Shows remaining snooze time in the popup
 - **Manual Cancel**: Clear snooze at any time to resume notifications immediately
@@ -99,13 +100,16 @@ Temporarily pause all notifications for a configurable duration:
 ## How It Works
 
 ### Authentication
+
 The extension uses your existing Zendesk session cookies for authentication. This means:
+
 - ✅ No API tokens required
 - ✅ No additional login needed
 - ✅ Works with SSO and 2FA
 - ⚠️ Requires you to be logged into Zendesk in the same browser
 
 ### Monitoring Process
+
 1. **Background Service Worker** runs periodic checks using Chrome Alarms API
 2. **Offscreen Document** (Manifest V3 requirement) handles audio playback via Web Audio API
 3. **Cookie Retrieval** gets your Zendesk authentication cookies
@@ -114,6 +118,7 @@ The extension uses your existing Zendesk session cookies for authentication. Thi
 6. **Notifications** are triggered when counts increase (unless snoozed)
 
 ### Notification System
+
 - **Badge**: Extension icon shows total ticket count across all endpoints
 - **Sound**: Configurable audio notification using Web Audio API (offscreen document)
 - **Popup**: Browser notification with ticket details
@@ -121,6 +126,7 @@ The extension uses your existing Zendesk session cookies for authentication. Thi
 - **Snooze**: Temporarily pause all notifications
 
 ### Manifest V3 Architecture
+
 - **Service Worker** runs in background for monitoring and notification management
 - **Offscreen Document** required for audio playback (Manifest V3 constraint)
 - **Chrome Storage API** for persistent settings and endpoint configuration
@@ -129,24 +135,28 @@ The extension uses your existing Zendesk session cookies for authentication. Thi
 ## Troubleshooting
 
 ### No Tickets Detected
+
 - Ensure you're logged into Zendesk in the same browser
 - Check that your search URL returns results when opened directly
 - Verify the endpoint URL is correct and accessible
 - Check browser console for error messages
 
 ### Authentication Issues
+
 - Make sure you're logged into your Zendesk instance
 - Try refreshing your Zendesk session
 - Check if your Zendesk session has expired
 - Verify the domain in your endpoint URL matches your Zendesk instance
 
 ### Notifications Not Working
+
 - Check that browser notifications are enabled for Chrome
 - Verify notification permissions in Chrome settings
 - Ensure sound is enabled in extension settings
 - Check that the extension is not paused
 
 ### Performance Issues
+
 - Increase check interval if monitoring many endpoints
 - Limit the number of active endpoints
 - Check Zendesk API rate limits
@@ -154,11 +164,13 @@ The extension uses your existing Zendesk session cookies for authentication. Thi
 ## API Reference
 
 ### Zendesk Search API Format
-```
+
+``` text
 https://your-domain.zendesk.com/api/v2/search.json?query=SEARCH_QUERY
 ```
 
 ### Common Search Parameters
+
 - `type:ticket` - Only tickets
 - `status:new|open|pending|solved|closed` - Ticket status
 - `priority:low|normal|high|urgent` - Priority level
@@ -169,12 +181,15 @@ https://your-domain.zendesk.com/api/v2/search.json?query=SEARCH_QUERY
 - `has_incidents:true` - Tickets with related incidents
 
 ### URL Encoding
+
 When adding endpoints manually:
+
 - Spaces in query parameters become `+` (automatically handled by most tools)
 - Special characters should be URL-encoded (e.g., `&` → `%26`)
 - Group/assignee names with spaces use quotes: `group:"support team"`
 
 ### Expected Response Format
+
 ```json
 {
   "results": [...],
@@ -195,7 +210,7 @@ The extension monitors the `count` field for changes.
 
 ## File Structure
 
-```
+``` text
 zendesk-ticket-monitor/
 ├── manifest.json          # Extension configuration
 ├── background.js          # Service worker for monitoring
@@ -222,6 +237,7 @@ This project is provided as-is for educational and development purposes.
 ## Changelog
 
 ### Version 3.0.0
+
 - Snooze notification feature (configurable duration or indefinite)
 - Dark mode theme support
 - Enhanced error handling and recovery
@@ -230,6 +246,7 @@ This project is provided as-is for educational and development purposes.
 - Bug fixes and performance optimizations
 
 ### Version 1.0
+
 - Initial release
 - Manifest V3 compatibility
 - Cookie-based authentication
