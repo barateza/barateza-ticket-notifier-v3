@@ -66,7 +66,18 @@ describe('Popup UI - Phase 2', () => {
       const isValidUrl = (url) => {
         try {
           const parsed = new URL(url);
-          return parsed.protocol === 'https:' && parsed.hostname.endsWith('zendesk.com') && parsed.pathname.includes('/api/v2/search');
+          const hostnameParts = parsed.hostname.split('.');
+          const isValidZendeskDomain = 
+            hostnameParts.length >= 3 &&
+            hostnameParts[hostnameParts.length - 2] === 'zendesk' &&
+            hostnameParts[hostnameParts.length - 1] === 'com' &&
+            hostnameParts[0].length > 0;
+          
+          // Check that pathname contains /api/v2/search.json
+          const hasApiPath = 
+            parsed.pathname.includes('/api/v2/search');
+          
+          return parsed.protocol === 'https:' && isValidZendeskDomain && hasApiPath;
         } catch {
           return false;
         }
@@ -269,7 +280,14 @@ describe('Popup UI - Phase 2', () => {
       const testEndpoint = (url) => {
         try {
           const parsed = new URL(url);
-          return parsed.protocol === 'https:' && parsed.hostname.endsWith('zendesk.com');
+          const hostnameParts = parsed.hostname.split('.');
+          const isValidZendeskDomain = 
+            hostnameParts.length >= 3 &&
+            hostnameParts[hostnameParts.length - 2] === 'zendesk' &&
+            hostnameParts[hostnameParts.length - 1] === 'com' &&
+            hostnameParts[0].length > 0;
+          
+          return parsed.protocol === 'https:' && isValidZendeskDomain;
         } catch {
           return false;
         }

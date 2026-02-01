@@ -203,7 +203,17 @@ async function handleTestEndpoint() {
     
     try {
         const urlObj = new URL(url);
-        if (!urlObj.hostname.endsWith('.zendesk.com')) {
+        const hostname = urlObj.hostname;
+        // Validate hostname is a Zendesk subdomain: must end with '.zendesk.com'
+        // and have a non-empty subdomain part
+        const hostnameParts = hostname.split('.');
+        const isValidZendeskDomain = 
+            hostnameParts.length >= 3 &&
+            hostnameParts[hostnameParts.length - 2] === 'zendesk' &&
+            hostnameParts[hostnameParts.length - 1] === 'com' &&
+            hostnameParts[0].length > 0;
+        
+        if (!isValidZendeskDomain) {
             showError('URL must be a Zendesk domain (*.zendesk.com)');
             return;
         }
@@ -506,13 +516,25 @@ async function handleSaveEndpoint() {
     // Validate URL format
     try {
         const urlObj = new URL(url);
-        if (!urlObj.hostname.endsWith('.zendesk.com')) {
+        const hostname = urlObj.hostname;
+        // Validate hostname is a Zendesk subdomain: must end with '.zendesk.com'
+        // and have a non-empty subdomain part
+        const hostnameParts = hostname.split('.');
+        const isValidZendeskDomain = 
+            hostnameParts.length >= 3 &&
+            hostnameParts[hostnameParts.length - 2] === 'zendesk' &&
+            hostnameParts[hostnameParts.length - 1] === 'com' &&
+            hostnameParts[0].length > 0;
+        
+        if (!isValidZendeskDomain) {
             showError('URL must be a Zendesk domain (*.zendesk.com)');
             return;
         }
         
-        // Validate URL is an API endpoint
-        if (!urlObj.pathname.includes('/api/')) {
+        // Validate URL is an API endpoint by checking pathname
+        const hasApiPath = urlObj.pathname.includes('/api/v2/search');
+        
+        if (!hasApiPath) {
             showError('URL must be a Zendesk API endpoint');
             return;
         }
