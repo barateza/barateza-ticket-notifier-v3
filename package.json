@@ -7,7 +7,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "coverage:report": "jest --coverage --coverageReporters=html --coverageReporters=text"
+    "coverage:report": "jest --coverage --coverageReporters=html --coverageReporters=text --coverageReporters=json-summary"
   },
   "keywords": [
     "zendesk",
