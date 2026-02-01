@@ -337,9 +337,20 @@ function createEndpointElement(endpoint, index) {
     const div = document.createElement('div');
     div.className = 'endpoint-item';
 
-    const truncatedUrl = endpoint.url.length > 60 ? 
-        endpoint.url.substring(0, 60) + '...' : 
-        endpoint.url;
+    // Safely truncate URL by finding a safe boundary that doesn't cut URL-encoded characters
+    let truncatedUrl = endpoint.url;
+    if (endpoint.url.length > 60) {
+        // Find safe truncation point that doesn't split % encoding
+        let truncPoint = 60;
+        // Check if we're in the middle of %XX encoding
+        if (endpoint.url[truncPoint - 1] === '%' || 
+            (endpoint.url[truncPoint - 2] === '%' && /[0-9A-Fa-f]/.test(endpoint.url[truncPoint - 1]))) {
+            // Back up to before the % sign
+            truncPoint = endpoint.url.lastIndexOf('%', truncPoint - 1);
+            if (truncPoint < 10) truncPoint = 60; // Fallback if % not found
+        }
+        truncatedUrl = endpoint.url.substring(0, truncPoint) + '...';
+    }
 
     div.innerHTML = `
         <div class="endpoint-info">
