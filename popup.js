@@ -4,11 +4,18 @@
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Popup loaded');
 
-    // Initialize UI
-    await loadSettings();
-    await loadEndpoints();
-    await updateStatus();
-    await updateSnoozeStatus();
+    try {
+        // Initialize UI
+        await loadSettings();
+        await loadEndpoints();
+        await updateStatus();
+        await updateSnoozeStatus();
+    } catch (error) {
+        console.error('Error initializing popup:', error);
+    } finally {
+        // Ensure loading indicator is hidden
+        hideLoading();
+    }
 
     // Set up event listeners
     setupEventListeners();
@@ -145,6 +152,9 @@ async function updateSnoozeStatus() {
         }
     } catch (error) {
         console.error('Error getting snooze status:', error);
+    } finally {
+        // Ensure loading indicator is always hidden
+        hideLoading();
     }
 }
 
@@ -166,33 +176,6 @@ function startSnoozeTimer() {
             clearInterval(timer);
         }
     }, 60000); // Update every minute
-}
-
-// Handle refresh now button with debounce
-async function handleRefreshNow() {
-    const btn = document.getElementById('refreshBtn');
-    const originalText = btn.innerHTML;
-
-    try {
-        btn.innerHTML = '<span class="btn-icon">⏳</span> Checking...';
-        btn.disabled = true;
-
-        const response = await chrome.runtime.sendMessage({ action: 'refreshNow' });
-
-        if (response && response.success) {
-            showSuccess('Manual refresh completed');
-            await updateStatus();
-        } else {
-            showError(response.error || 'Refresh failed');
-        }
-    } catch (error) {
-        console.error('Error during refresh:', error);
-        showError('Refresh failed');
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        updateLastCheckTime();
-    }
 }
 
 // Show loading overlay
@@ -236,6 +219,33 @@ async function handleTestEndpoint() {
         showSuccess(testResult.message);
     } else {
         showError(testResult.message);
+    }
+}
+
+// Handle refresh now button with debounce
+async function handleRefreshNow() {
+    const btn = document.getElementById('refreshBtn');
+    const originalText = btn.innerHTML;
+
+    try {
+        btn.innerHTML = '<span class="btn-icon">⏳</span> Checking...';
+        btn.disabled = true;
+
+        const response = await chrome.runtime.sendMessage({ action: 'refreshNow' });
+
+        if (response && response.success) {
+            showSuccess('Manual refresh completed');
+            await updateStatus();
+        } else {
+            showError(response.error || 'Refresh failed');
+        }
+    } catch (error) {
+        console.error('Error during refresh:', error);
+        showError('Refresh failed');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        updateLastCheckTime();
     }
 }
 
@@ -392,33 +402,6 @@ window.deleteEndpoint = async function(index) {
         showError('Failed to delete endpoint');
     }
 };
-
-// Handle refresh now button
-async function handleRefreshNow() {
-    const btn = document.getElementById('refreshBtn');
-    const originalText = btn.innerHTML;
-
-    try {
-        btn.innerHTML = '<span class="btn-icon">⏳</span> Checking...';
-        btn.disabled = true;
-
-        const response = await chrome.runtime.sendMessage({ action: 'refreshNow' });
-
-        if (response && response.success) {
-            showSuccess('Manual refresh completed');
-            await updateStatus();
-        } else {
-            showError('Refresh failed');
-        }
-    } catch (error) {
-        console.error('Error during refresh:', error);
-        showError('Refresh failed');
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        updateLastCheckTime();
-    }
-}
 
 // Handle toggle monitoring button
 async function handleToggleMonitoring() {

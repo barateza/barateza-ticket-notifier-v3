@@ -237,7 +237,8 @@ body {
     z-index: 1000;
 }
 
-.modal.hidden {
+.modal.hidden,
+.loading-overlay.hidden {
     display: none;
 }
 
