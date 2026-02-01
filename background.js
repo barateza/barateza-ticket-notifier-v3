@@ -367,62 +367,65 @@ async function updateBadge() {
 
 // Handle messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  switch (request.action) {
-    case 'refreshNow':
-      const now = Date.now();
-      if (now - lastCheckTime < MIN_REFRESH_INTERVAL) {
-        console.log('Refresh rate limited');
+  // Handle async actions in a separate function
+  (async () => {
+    switch (request.action) {
+      case 'refreshNow':
+        const now = Date.now();
+        if (now - lastCheckTime < MIN_REFRESH_INTERVAL) {
+          console.log('Refresh rate limited');
+          sendResponse({ 
+            success: false, 
+            error: 'Please wait 30 seconds before refreshing again' 
+          });
+          return;
+        }
+        lastCheckTime = now;
+        console.log('Manual refresh requested');
+        checkAllEndpoints();
+        sendResponse({ success: true });
+        break;
+
+      case 'toggleEnabled':
+        isEnabled = request.enabled;
+        console.log(`Monitoring ${isEnabled ? 'enabled' : 'disabled'}`);
+        sendResponse({ success: true });
+        break;
+
+      case 'getStatus':
         sendResponse({ 
-          success: false, 
-          error: 'Please wait 30 seconds before refreshing again' 
+          enabled: isEnabled,
+          counts: Array.from(endpointCounts.entries()),
+          lastCheck: lastCheckTime,
+          isSnoozed: isSnoozed(),
+          snoozeEndTime: snoozeEndTime
         });
-        return true;
-      }
-      lastCheckTime = now;
-      console.log('Manual refresh requested');
-      checkAllEndpoints();
-      sendResponse({ success: true });
-      break;
+        break;
 
-    case 'toggleEnabled':
-      isEnabled = request.enabled;
-      console.log(`Monitoring ${isEnabled ? 'enabled' : 'disabled'}`);
-      sendResponse({ success: true });
-      break;
+      case 'setSnooze':
+        const setSnoozeResponse = await setSnooze(request.duration);
+        sendResponse(setSnoozeResponse);
+        break;
+        
+      case 'clearSnooze':
+        console.log('clearSnooze action received, clearing snooze...');
+        const clearResponse = await clearSnooze();
+        console.log('clearSnooze completed, isSnoozed:', isSnoozed());
+        sendResponse(clearResponse);
+        break;
+        
+      case 'getSnoozeStatus':
+        sendResponse({
+          isSnoozed: isSnoozed(),
+          snoozeEndTime: snoozeEndTime,
+          remainingTime: getRemainingSnoozeTime()
+        });
+        break;
 
-    case 'getStatus':
-      sendResponse({ 
-        enabled: isEnabled,
-        counts: Array.from(endpointCounts.entries()),
-        lastCheck: lastCheckTime,
-        isSnoozed: isSnoozed(),
-        snoozeEndTime: snoozeEndTime
-      });
-      break;
-
-    case 'setSnooze':
-      setSnooze(request.duration).then(response => {
-        sendResponse(response);
-      });
-      return true; // Keep channel open for async response
-      
-    case 'clearSnooze':
-      clearSnooze().then(response => {
-        sendResponse(response);
-      });
-      return true; // Keep channel open for async response
-      
-    case 'getSnoozeStatus':
-      sendResponse({
-        isSnoozed: isSnoozed(),
-        snoozeEndTime: snoozeEndTime,
-        remainingTime: getRemainingSnoozeTime()
-      });
-      break;
-
-    default:
-      sendResponse({ error: 'Unknown action' });
-  }
+      default:
+        sendResponse({ error: 'Unknown action' });
+    }
+  })();
 
   return true; // Keep message channel open for async response
 });
