@@ -3,6 +3,21 @@
 ## Project Overview
 This is a Manifest V3 Chrome extension that monitors Zendesk ticket API endpoints and notifies users via sound and browser notifications when new tickets arrive. It uses cookie-based authentication (no API tokens) and manages multiple monitored endpoints with configurable check intervals.
 
+## Quick Start - Download & Install
+
+**For end users** (non-developers):
+
+1. **[Download v3.1.0](https://github.com/barateza/barateza-ticket-notifier-v3/archive/refs/tags/v3.1.0.zip)** - Extract the ZIP file
+2. Open Chrome → `chrome://extensions/`
+3. Enable "Developer mode" (top right toggle)
+4. Click "Load unpacked" and select the extracted folder
+5. Login to Zendesk in your browser
+6. Click the extension icon to configure endpoints
+
+**For developers** (modifying code):
+
+Clone the repository and follow the Architecture sections below to understand the codebase before making changes.
+
 ## Architecture
 
 ### Core Components
@@ -467,19 +482,30 @@ sed -i '' 's/tests-68%20passing/tests-NEW_COUNT%20passing/g' README.md
 
 **Before creating version tags or releases**:
 
-1. **Run tests**: `npm test 2>&1 | grep "Tests:"`
-2. **Update test badge** if count changed: `sed -i '' 's/tests-68%20passing/tests-NEW_COUNT%20passing/g' README.md`
-3. **Verify install-guide.html** matches README.md:
+1. **Update download links** in README.md and copilot-instructions.md:
+   - Search for current version tag (e.g., `v3.1.0`)
+   - Replace with new version in:
+     - README.md Quick Start section: `[Download vX.X.X](...archive/refs/tags/vX.X.X.zip)`
+     - copilot-instructions.md Quick Start section: `[Download vX.X.X](...archive/refs/tags/vX.X.X.zip)`
+   - Example: `https://github.com/barateza/barateza-ticket-notifier-v3/archive/refs/tags/vNEW_VERSION.zip`
+
+2. **Run tests**: `npm test 2>&1 | grep "Tests:"`
+
+3. **Update test badge** if count changed: `sed -i '' 's/tests-68%20passing/tests-NEW_COUNT%20passing/g' README.md`
+
+4. **Verify install-guide.html** matches README.md:
    - [ ] Installation methods match in order and detail
    - [ ] All file names are current
    - [ ] Feature descriptions are consistent
    - [ ] Chrome extension URL `chrome://extensions/` is correct
    - [ ] No hardcoded Zendesk domains (use placeholders)
-4. **Validate documentation links**:
+
+5. **Validate documentation links**:
    ```bash
    grep -r "PHASES.md\|COVERAGE_SETUP.md\|FINAL_REPORT.md\|RELEASE_TEST.md" . --include="*.md" --include="*.html" 2>/dev/null | grep -v ".git"
    ```
-5. **Review RELEASE.md** for outdated version references
+
+6. **Review RELEASE.md** for outdated version references
 
 ### install-guide.html Maintenance Checklist
 
