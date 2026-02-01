@@ -2,17 +2,17 @@
 
 A Chrome extension that monitors Zendesk ticket endpoints and notifies you with sound and/or popup notifications when new tickets are found. Compatible with Manifest V3 and uses existing browser cookies for authentication.
 
+[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+[![Latest Release](https://img.shields.io/github/v/release/barateza/barateza-ticket-notifier-v3?style=flat-square)](https://github.com/barateza/barateza-ticket-notifier-v3/releases/latest)
+![Manifest V3](https://img.shields.io/badge/Manifest-V3-blue?style=flat-square)
 [![Tests Passing](https://img.shields.io/badge/tests-69%20passing-brightgreen?style=flat-square&logo=jest)](https://github.com/barateza/barateza-ticket-notifier-v3/tree/main/__tests__)
 [![Code Coverage](https://github.com/barateza/barateza-ticket-notifier-v3/actions/workflows/coverage.yml/badge.svg)](https://github.com/barateza/barateza-ticket-notifier-v3/actions/workflows/coverage.yml)
 [![CodeQL](https://github.com/barateza/barateza-ticket-notifier-v3/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/barateza/barateza-ticket-notifier-v3/actions/workflows/github-code-scanning/codeql)
 [![Dependabot](https://img.shields.io/badge/dependabot-enabled-brightgreen?style=flat-square&logo=dependabot)](https://github.com/barateza/barateza-ticket-notifier-v3/security/dependabot)
-[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
-[![Latest Release](https://img.shields.io/github/v/release/barateza/barateza-ticket-notifier-v3?style=flat-square)](https://github.com/barateza/barateza-ticket-notifier-v3/releases/latest)
 ![Node Support](https://img.shields.io/badge/node-%E2%89%A518.0-brightgreen?style=flat-square)
-![Manifest V3](https://img.shields.io/badge/Manifest-V3-blue?style=flat-square)
 ![Works on My Machine](https://img.shields.io/badge/works%20on%20my%20machine-✓-brightgreen?style=flat-square)
 
-[![Buy Me a Coffee](https://ko-fi.com/img/githubbutton.png)](https://ko-fi.com/barateza)
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/K3K81TDYEL)
 
 ## Quick Start
 
