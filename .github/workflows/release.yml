@@ -1,0 +1,104 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tests
+        run: npm test -- --no-coverage
+      
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: coverage/
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+      - name: Create extension zip
+        run: |
+          mkdir -p barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}
+          
+          # Copy extension files only
+          cp background.js barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
+          cp manifest.json barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
+          cp popup.html barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
+          cp popup.js barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
+          cp popup.css barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
+          cp offscreen.html barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
+          cp offscreen.js barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
+          cp -r icons/ barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
+          
+          # Create zip
+          zip -r barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}.zip barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
+          
+          ls -lh barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}.zip
+      
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ steps.version.outputs.VERSION }}
+          body: |
+            ## Release ${{ steps.version.outputs.VERSION }}
+            
+            ### What's Changed
+            See commits between this and previous release.
+            
+            ### Installation
+            1. Download `barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}.zip`
+            2. Extract the archive
+            3. Open Chrome extensions page (`chrome://extensions`)
+            4. Enable "Developer mode"
+            5. Click "Load unpacked" and select the extracted folder
+            
+            ### Testing
+            All unit tests passed before this release.
+            
+            **Files Included:**
+            - background.js (Service Worker)
+            - popup.html, popup.js, popup.css (UI)
+            - offscreen.html, offscreen.js (Audio playback)
+            - manifest.json (Configuration)
+            - icons/ (Extension icons)
+          draft: false
+          prerelease: false
+      
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}.zip
+          asset_name: barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}.zip
+          asset_content_type: application/zip
