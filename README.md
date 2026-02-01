@@ -2,7 +2,7 @@
 
 A Chrome extension that monitors Zendesk ticket endpoints and notifies you with sound and/or popup notifications when new tickets are found. Compatible with Manifest V3 and uses existing browser cookies for authentication.
 
-[![Tests Passing](https://img.shields.io/badge/tests-68%20passing-brightgreen?style=flat-square&logo=jest)](https://github.com/gilsonsiqueira/barateza-ticket-notifier-v3/__tests__/)
+[![Tests Passing](https://img.shields.io/badge/tests-69%20passing-brightgreen?style=flat-square&logo=jest)](https://github.com/gilsonsiqueira/barateza-ticket-notifier-v3/__tests__/)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen?style=flat-square)](https://github.com/gilsonsiqueira/barateza-ticket-notifier-v3/actions)
 ![Node Support](https://img.shields.io/badge/node-%E2%89%A518.0-brightgreen?style=flat-square)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-blue?style=flat-square)
@@ -11,7 +11,7 @@ A Chrome extension that monitors Zendesk ticket endpoints and notifies you with 
 
 ### Download & Install (2 minutes)
 
-1. **[Download v3.1.0](https://github.com/barateza/barateza-ticket-notifier-v3/archive/refs/tags/v3.1.0.zip)** - Extract the ZIP file to your computer
+1. **[Download v3.1.1](https://github.com/barateza/barateza-ticket-notifier-v3/archive/refs/tags/v3.1.1.zip)** - Extract the ZIP file to your computer
 2. **Open Chrome** and go to `chrome://extensions/`
 3. **Enable "Developer mode"** (toggle in the top right)
 4. **Click "Load unpacked"** and select the extracted folder
@@ -235,6 +235,15 @@ Feel free to submit issues, feature requests, or pull requests to improve this e
 This project is provided as-is for educational and development purposes.
 
 ## Changelog
+
+### Version 3.1.1
+
+- 🔒 **Security**: Fixed CodeQL "Incomplete URL substring sanitization" warnings
+- 🔒 **Security**: Implemented explicit URL validation following OWASP recommendations
+- ✅ Improved hostname validation to prevent domain spoofing
+- ✅ Replaced regex patterns with explicit component checking
+- ✅ Enhanced URL parsing for API endpoint validation
+- ✅ All 69 tests passing with improved security coverage
 
 ### Version 3.0.0
 

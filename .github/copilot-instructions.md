@@ -7,7 +7,7 @@ This is a Manifest V3 Chrome extension that monitors Zendesk ticket API endpoint
 
 **For end users** (non-developers):
 
-1. **[Download v3.1.0](https://github.com/barateza/barateza-ticket-notifier-v3/archive/refs/tags/v3.1.0.zip)** - Extract the ZIP file
+1. **[Download v3.1.1](https://github.com/barateza/barateza-ticket-notifier-v3/archive/refs/tags/v3.1.1.zip)** - Extract the ZIP file
 2. Open Chrome → `chrome://extensions/`
 3. Enable "Developer mode" (top right toggle)
 4. Click "Load unpacked" and select the extracted folder
@@ -564,5 +564,5 @@ grep -r "PHASES.md\|COVERAGE_SETUP.md\|FINAL_REPORT.md\|RELEASE_TEST.md" . --inc
 
 **Last Updated**: February 1, 2026
 **Documentation Status**: Consolidated to 4 core files
-**Current Version**: v3.1.0
-**Test Count**: 68 passing
+**Current Version**: v3.1.1
+**Test Count**: 69 passing
