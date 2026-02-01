@@ -9,11 +9,13 @@ This document outlines the complete testing strategy and current status for the 
 ## Quick Start
 
 ### Install Dependencies
+
 ```bash
 npm install
 ```
 
 ### Run Tests
+
 ```bash
 # Run all tests
 npm test
@@ -54,9 +56,11 @@ Last Run:        February 1, 2026
 <summary><strong>Phase Summary (Click to expand)</strong></summary>
 
 #### Phase 1: Background Service Worker Unit Tests ✅
+
 **Status**: Delivered | **Tests**: 21 | **Coverage Area**: background.js (service worker logic)
 
 Core functionality tested:
+
 - Cookie Authentication (3 tests) - Extract Zendesk auth cookies, handle missing cookies, error handling
 - Endpoint Validation (3 tests) - URL format validation, prevent duplicates, name validation (1-100 chars)
 - Count Comparison Logic (4 tests) - Detect increases, ignore same/decreasing counts, handle first check
@@ -66,9 +70,11 @@ Core functionality tested:
 - Endpoint Enable/Disable (2 tests) - Toggle state, skip disabled endpoints in checks
 
 #### Phase 2: Popup UI State Management Tests ✅
+
 **Status**: Delivered | **Tests**: 27 | **Coverage Area**: popup.js (user interface & event handling)
 
 UI and interaction testing:
+
 - Form Validation (5 tests) - URL format, name validation, duplicate detection, error display, form clearing
 - DOM Rendering (6 tests) - Endpoint list rendering, display names/URLs, enabled/disabled status, empty state
 - Event Handlers (8 tests) - Add endpoint, delete endpoint, toggle enable/disable, save settings, refresh now
@@ -76,9 +82,11 @@ UI and interaction testing:
 - Settings Persistence (3 tests) - Load settings on popup open, save modified settings, handle corrupted data
 
 #### Phase 3: Integration Tests ✅
+
 **Status**: Delivered | **Tests**: 20 | **Coverage Area**: Cross-module workflows
 
 End-to-end workflows:
+
 - Endpoint Monitoring Cycle (5 tests) - Complete cycle with new tickets, no changes, decreased count, multiple endpoints, error recovery
 - Notification Flow (4 tests) - Ticket arrival → notification, click → open Zendesk, sound plays, notification cleared
 - Message Passing (3 tests) - Popup → background communication, background → popup updates, error handling
@@ -86,9 +94,11 @@ End-to-end workflows:
 - Complex Scenarios (2 tests) - Multiple endpoints with different statuses, rapid count changes
 
 #### Phase 4: E2E Testing (Optional) - Not Started
+
 **Target**: 10-15 E2E tests with Playwright | **Status**: Available for future work
 
 Would include:
+
 - Real Chrome extension loading and installation
 - Real Zendesk API integration (sandbox)
 - Actual browser notification display and interactions
@@ -101,66 +111,79 @@ Would include:
 
 ### Test Files
 
-- [__tests__/background.test.js](__tests__/background.test.js) - Phase 1 (21 tests)
-- [__tests__/popup.test.js](__tests__/popup.test.js) - Phase 2 (27 tests)
-- [__tests__/integration.test.js](__tests__/integration.test.js) - Phase 3 (20 tests)
+- [**tests**/background.test.js](__tests__/background.test.js) - Phase 1 (21 tests)
+- [**tests**/popup.test.js](__tests__/popup.test.js) - Phase 2 (27 tests)
+- [**tests**/integration.test.js](__tests__/integration.test.js) - Phase 3 (20 tests)
 
 **Completion Date**: January 31 - February 1, 2026
 
 **Cookie Authentication (3 tests)**
+
 - ✓ Extract Zendesk auth cookies for a given domain
 - ✓ Return empty string when no auth cookies found
 - ✓ Handle cookie retrieval errors gracefully
 
 **Endpoint Validation (3 tests)**
+
 - ✓ Validate endpoint URL format (must be HTTPS Zendesk domain)
 - ✓ Prevent duplicate endpoints
 - ✓ Validate endpoint name is not empty (1-100 characters)
 
 **Count Comparison Logic (4 tests)**
+
 - ✓ Detect when ticket count increases
 - ✓ Not notify when count stays the same
 - ✓ Not notify when count decreases
 - ✓ Handle missing previous count (first check)
 
 **API Response Parsing (3 tests)**
+
 - ✓ Extract count from valid Zendesk API response
 - ✓ Handle invalid API response gracefully
 - ✓ Handle null/undefined response
 
 **Snooze State Management (3 tests)**
+
 - ✓ Block notifications when snooze is active
 - ✓ Allow notifications when snooze has expired
 - ✓ Clear snooze when time is reached
 
 **Storage Persistence (3 tests)**
+
 - ✓ Read endpoints from storage
 - ✓ Read settings from storage
 - ✓ Persist updated endpoint data
 
 **Endpoint Enable/Disable (2 tests)**
+
 - ✓ Toggle endpoint enabled state
 - ✓ Not check disabled endpoints
 
 ## Coverage Reports
 
 ### HTML Report
+
 Interactive coverage report available at:
+
 ```
 coverage/index.html
 ```
 
 Open in browser to see:
+
 - Overall coverage metrics
 - Per-file coverage breakdown
 - Line-by-line coverage highlighting
 - Uncovered branches and functions
 
 ### Text Summary
+
 Run `npm test` to see console output with coverage table.
 
 ### LCOV Report
+
 For CI/CD integration and external tools:
+
 ```
 coverage/lcov.info
 ```
@@ -181,6 +204,7 @@ coverage/lcov.info
 ### Code Line Coverage
 
 Since tests focus on business logic and workflows (not importing source files for instrumentation):
+
 - Current: 0% (expected during planning phases)
 - Will measure once tests import actual source code
 - Target after Phase 2: 40-50%
@@ -202,6 +226,7 @@ Since tests focus on business logic and workflows (not importing source files fo
 ## Release Information
 
 **Latest Release**: v3.1.0 (February 1, 2026)
+
 - All 68 tests passing before release
 - GitHub Actions workflow tested and verified
 - Zip package created with extension files only
@@ -228,18 +253,20 @@ chrome.tabs.{create, query, update}
 ## CI/CD Integration
 
 ### GitHub Actions Workflow
+
 Automatic testing on every push and pull request:
 
 **File**: `.github/workflows/coverage.yml`
 
 **Features**:
+
 - Runs on Node.js 18.x and 20.x
 - Generates HTML coverage report
 - Uploads coverage as artifact (30-day retention)
 - Posts coverage summary on PR comments
 - Fails if coverage thresholds not met
 
-**Artifact Location**: 
+**Artifact Location**:
 Navigate to GitHub Actions → Coverage workflow → Artifacts
 
 ## Running Specific Tests
@@ -277,17 +304,22 @@ node --inspect-brk node_modules/.bin/jest --runInBand
 ## Common Issues
 
 ### Coverage Not Showing for Source Files
+
 **Cause**: Source files not imported into test files
 **Solution**: Tests currently focus on business logic patterns; actual instrumentation will occur as tests evolve
 
 ### Tests Timeout
+
 **Fix**: Increase timeout in jest.config.js:
+
 ```javascript
 testTimeout: 10000 // ms
 ```
 
 ### Mock Not Working
+
 **Check**:
+
 1. Verify mock is set up in `jest.setup.js`
 2. Ensure `setupFilesAfterEnv` configured in `jest.config.js`
 3. Call `jest.clearAllMocks()` in test `beforeEach`
