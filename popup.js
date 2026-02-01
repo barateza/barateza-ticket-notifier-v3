@@ -304,13 +304,13 @@ async function saveSettings() {
             document.body.classList.remove('dark-mode');
         }
 
-        // Update alarm interval if changed
-        if (settings.checkInterval !== 1) {
-            await chrome.alarms.clear('ticketCheck');
-            await chrome.alarms.create('ticketCheck', { 
-                periodInMinutes: settings.checkInterval 
-            });
-        }
+        // Always update alarm interval to match new setting (minimum 1 minute)
+        const interval = Math.max(1, settings.checkInterval);
+        await chrome.alarms.clear('ticketCheck');
+        await chrome.alarms.create('ticketCheck', { 
+            periodInMinutes: interval 
+        });
+        console.log(`Alarm interval updated to ${interval} minutes`);
 
     } catch (error) {
         console.error('Error saving settings:', error);
