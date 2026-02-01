@@ -3,7 +3,7 @@
 A Chrome extension that monitors Zendesk ticket endpoints and notifies you with sound and/or popup notifications when new tickets are found. Compatible with Manifest V3 and uses existing browser cookies for authentication.
 
 [![🧪 Tests Passing](https://img.shields.io/badge/tests-69%20passing-brightgreen?style=flat-square&logo=jest)](https://github.com/gilsonsiqueira/barateza-ticket-notifier-v3/__tests__/)
-[![✅ Build Status](https://img.shields.io/badge/build-passing-brightgreen?style=flat-square&logo=github)](https://github.com/gilsonsiqueira/barateza-ticket-notifier-v3/actions/workflows/coverage.yml)
+[![✅ Build Status](https://github.com/gilsonsiqueira/barateza-ticket-notifier-v3/actions/workflows/coverage.yml/badge.svg)](https://github.com/gilsonsiqueira/barateza-ticket-notifier-v3/actions/workflows/coverage.yml)
 [![📦 Node Support](https://img.shields.io/badge/node-%E2%89%A518.0-brightgreen?style=flat-square)](#)
 [![🔷 Manifest V3](https://img.shields.io/badge/Manifest-V3-blue?style=flat-square)](#)
 

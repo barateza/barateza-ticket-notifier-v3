@@ -168,6 +168,33 @@ https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+group:amer+assig
 4. **Audio Changes**: Update `playAudio()` in `offscreen.js` (oscillator frequency, duration, volume)
 5. **Icon Update**: Regenerate PNG files from `icons/icon-generator.html` and update manifest paths if needed
 
+## Badge Maintenance
+
+The README contains status badges that require periodic updates:
+
+### Dynamic Badges (Auto-updated by GitHub Actions)
+- **Build Status Badge**: Uses GitHub native workflow badge—automatically reflects current CI/CD status. No manual updates needed.
+
+### Static Badges (Manual Update Required)
+- **Test Count Badge**: Currently shows "69 passing". **Update this badge on every version bump or when test count changes:**
+  1. Run tests: `npm test`
+  2. Note the total passing test count from the output
+  3. Update `README.md` badge URL: Change `69%20passing` to `[NEW_COUNT]%20passing` in the tests badge URL
+  4. Recommended timing: Do this when releasing a new version (tag push) or after merging significant test additions
+
+**Timing Strategy**:
+- **Per-push**: If you want real-time accuracy, update test badge on every push to main/master after running tests
+- **Per-release**: If you prefer less frequent updates, update only when creating a new version tag (recommended for stability)
+
+**Example update**:
+```markdown
+# Before
+[![🧪 Tests Passing](https://img.shields.io/badge/tests-69%20passing-brightgreen?style=flat-square&logo=jest)]
+
+# After (if 75 tests pass)
+[![🧪 Tests Passing](https://img.shields.io/badge/tests-75%20passing-brightgreen?style=flat-square&logo=jest)]
+```
+
 ## Code Examples for Common Modifications
 
 ### Example 1: Add a New Setting (e.g., Desktop Notifications)
