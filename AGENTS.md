@@ -1,7 +1,5 @@
 # Zendesk Ticket Monitor Chrome Extension - AI Instructions
 
-> ⚠️ **SYNC REQUIRED**: Any changes made to this file (`copilot-instructions.md`) **MUST be immediately replicated** to `AGENTS.md` to keep both files in sync. These files serve the same purpose for different AI contexts and should remain identical in content.
-
 ## Project Overview
 This is a Manifest V3 Chrome extension that monitors Zendesk ticket API endpoints and notifies users via sound and browser notifications when new tickets arrive. It uses cookie-based authentication (no API tokens) and manages multiple monitored endpoints with configurable check intervals.
 
