@@ -9,7 +9,7 @@ module.exports = {
     '!**/node_modules/**'
   ],
   coverageDirectory: 'coverage',
-  coverageReporters: ['html', 'text', 'text-summary', 'lcov'],
+  coverageReporters: ['html', 'text', 'text-summary', 'lcov', 'json-summary'],
   coveragePathIgnorePatterns: ['/node_modules/'],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testMatch: ['**/__tests__/**/*.test.js'],
