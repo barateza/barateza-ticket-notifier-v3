@@ -1,6 +1,7 @@
 # Zendesk Ticket Monitor Chrome Extension - AI Instructions
 
 ## Project Overview
+
 This is a Manifest V3 Chrome extension that monitors Zendesk ticket API endpoints and notifies users via sound and browser notifications when new tickets arrive. It uses cookie-based authentication (no API tokens) and manages multiple monitored endpoints with configurable check intervals.
 
 ## Quick Start - Download & Install
@@ -23,6 +24,7 @@ Clone the repository and follow the Architecture sections below to understand th
 ### Core Components
 
 **Background Service Worker** (`background.js`)
+
 - Runs periodic checks using Chrome Alarms API (minimum 1-minute interval, user-configurable)
 - Maintains `endpointCounts` Map to track previous ticket counts per endpoint
 - Calls `checkAllEndpoints()` on each alarm tick
@@ -30,17 +32,20 @@ Clone the repository and follow the Architecture sections below to understand th
 - Manages `notificationEndpointMap` to associate notification IDs with endpoint URLs for click handling
 
 **Popup UI** (`popup.js` + `popup.html`)
+
 - Displays monitored endpoints, settings, and control buttons
 - Syncs UI state with `chrome.storage.local`: endpoints array and settings object
 - Event handlers use global `window` scope for functions (e.g., `window.toggleEndpoint()`)
 - Settings changes trigger alarm recreation if interval changed
 
 **Offscreen Document** (`offscreen.html` + `offscreen.js`)
+
 - Required by Manifest V3 for audio playback via Web Audio API
 - Receives `chrome.runtime.sendMessage()` with `{play: {type, volume}}` payload
 - Creates oscillator beep (800→600 Hz, 300ms duration)
 
 ### Data Flow
+
 1. User adds endpoint (stored in `chrome.storage.local.endpoints`)
 2. Background worker creates alarm, calls `checkAllEndpoints()` every N minutes
 3. For each enabled endpoint: retrieve Zendesk cookies → fetch count → if count increased:
@@ -52,29 +57,34 @@ Clone the repository and follow the Architecture sections below to understand th
 ## Key Developer Patterns
 
 ### Authentication (No API Tokens)
+
 - Extension has `"cookies"` permission scoped to `*://*.zendesk.com/*`
 - `getZendeskCookies(domain)` filters for session/auth/CSRF cookies by name
 - API requests include cookies in `Cookie` header AND `credentials: 'include'`
 - **Pattern**: Always extract domain from endpoint URL before requesting cookies
 
 ### Storage & State Management
+
 - All persistent data in `chrome.storage.local`: `endpoints` array and `settings` object
 - Each endpoint has: `{id (timestamp), name, url, enabled}`
 - Settings object: `{checkInterval (1-15 min), soundEnabled, notificationEnabled}`
 - In-memory `endpointCounts` Map restored only on startup; survives page refreshes but not service worker termination
 
 ### Message Passing (Background ↔ Popup)
+
 - Popup sends messages with `chrome.runtime.sendMessage({action, ...})`
 - Background handler: `chrome.runtime.onMessage.addListener()` with switch on `action` field
 - Main actions: `'refreshNow'`, `'toggleEnabled'`, `'getStatus'`
 - **Pattern**: Always return `true` at end of message listener to keep channel open for async operations
 
 ### Error Handling
+
 - All fetch/storage/message operations wrapped in try-catch
 - Errors logged to console; UI shows user-friendly error messages via `showError()` and `showSuccess()`
 - Missing or invalid data gracefully defaults (e.g., no endpoints shows "No endpoints configured")
 
 ### Endpoint Validation
+
 - URLs must be full Zendesk API search endpoints (e.g., `https://domain.zendesk.com/api/v2/search.json?query=...`)
 - **Extracting domain**: `new URL(endpoint.url).hostname`
 - **Response parsing**: Expected JSON response has `count` property (integer)
@@ -84,6 +94,7 @@ Clone the repository and follow the Architecture sections below to understand th
 The extension monitors Zendesk Search API (`/api/v2/search.json`). Common query parameters:
 
 **Ticket Type & Status**
+
 ```
 type:ticket+status:new                    # New tickets
 type:ticket+status:open                   # Open tickets
@@ -92,6 +103,7 @@ type:ticket+status:on-hold+status:new     # New OR on-hold
 ```
 
 **Assignment & Group**
+
 ```
 assignee:none                             # Unassigned
 assignee:me                               # Assigned to current user
@@ -100,6 +112,7 @@ group:"support team"                      # Group with spaces
 ```
 
 **Priority & SLA**
+
 ```
 priority:high+priority:urgent             # High or urgent
 priority:low                              # Low priority
@@ -107,6 +120,7 @@ is:unsolved+has_incidents:true            # Has related incidents
 ```
 
 **Time-based**
+
 ```
 created>2024-01-01                        # Created after date
 updated<2024-01-15                        # Updated before date
@@ -114,6 +128,7 @@ created:[2024-01-01 TO 2024-01-31]       # Date range
 ```
 
 **Combined Example** (from default endpoint):
+
 ```
 https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+group:amer+assignee:none+status:new
 ```
@@ -123,21 +138,25 @@ https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+group:amer+assig
 ## Critical Implementation Details
 
 ### Alarm & Check Interval
+
 - Alarms created with `{periodInMinutes: 1}` minimum (actual interval based on user settings)
 - `checkInterval` setting ignored during alarm creation—always runs on 1-min cycles
 - **Issue**: This is hardcoded; actual interval should use `periodInMinutes: settings.checkInterval`
 - All intervals are 1-minute regardless of user setting (settings only appear in UI)
 
 ### Notification Click Handler
+
 - `chrome.notifications.onClicked.addListener()` receives `notificationId`
 - Looks up endpoint URL from `notificationEndpointMap`; if found, opens tab with that URL
 - Falls back to Zendesk dashboard if mapping missing
 
 ### Badge Counter
+
 - `updateBadge()` sums all endpoint counts and displays on extension icon
 - Badge color: red (#FF6B6B) if count > 0, teal (#4ECDC4) if count = 0
 
 ### Endpoint Enable/Disable
+
 - `endpoint.enabled` boolean; disabled endpoints skipped in `checkAllEndpoints()` loop
 - UI buttons: toggle/delete operations reload endpoint list via `loadEndpoints()`
 
@@ -161,16 +180,19 @@ https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+group:amer+assig
 ## Common Extension Challenges
 
 **Manifest V3 Constraints**
+
 - No DOM in service worker; audio requires offscreen document
 - Cookies permission scoped to specific domains
 - Service worker terminates when idle; persistent data must use storage API
 
 **Cross-Context Communication**
+
 - Popup and background worker are separate execution contexts
 - Use `chrome.runtime.sendMessage()` to communicate; not direct function calls
 - Storage reads may be async; always await `chrome.storage.local.get()`
 
 **Cookie Retrieval**
+
 - `chrome.cookies.getAll()` requires domain parameter
 - Returns all cookies for domain; filter by name to find auth cookies
 - Zendesk uses multiple session/CSRF cookies; combine all into single Cookie header
@@ -188,6 +210,7 @@ https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+group:amer+assig
 The README contains status badges that require periodic updates:
 
 ### Dynamic Badges (Auto-updated by GitHub Actions)
+
 - **Build Status Badge**: Uses GitHub native workflow badge—automatically reflects current CI/CD status. No manual updates needed.
 - **Dependabot Badge**: Automatically enabled when Dependabot scans for dependency updates. Status reflects in [Security] → [Dependabot alerts]. No manual updates needed.
 - **CodeQL Badge**: Automatically enabled when CodeQL runs code analysis. Status reflects in [Security] → [Code Scanning]. No manual updates needed.
@@ -195,17 +218,20 @@ The README contains status badges that require periodic updates:
   - **Vulnerabilities Remediation**: Fixed vulnerabilities appear in [Security] → [Dependabot alerts] with automatic PR creation when updates available
 
 ### Static Badges (Manual Update Required)
-- **Test Count Badge**: Currently shows "69 passing". **Update this badge on every version bump or when test count changes:**
+
+- **Test Count Badge**: Currently shows "68 passing". **Update this badge on every version bump or when test count changes:**
   1. Run tests: `npm test`
   2. Note the total passing test count from the output
-  3. Update `README.md` badge URL: Change `69%20passing` to `[NEW_COUNT]%20passing` in the tests badge URL
+  3. Update `README.md` badge URL: Change `68%20passing` to `[NEW_COUNT]%20passing` in the tests badge URL
   4. Recommended timing: Do this when releasing a new version (tag push) or after merging significant test additions
 
 **Timing Strategy**:
+
 - **Per-push**: If you want real-time accuracy, update test badge on every push to main/master after running tests
 - **Per-release**: If you prefer less frequent updates, update only when creating a new version tag (recommended for stability)
 
 **Example update**:
+
 ```markdown
 # Before
 [![🧪 Tests Passing](https://img.shields.io/badge/tests-69%20passing-brightgreen?style=flat-square&logo=jest)]
@@ -219,6 +245,7 @@ The README contains status badges that require periodic updates:
 ### Example 1: Add a New Setting (e.g., Desktop Notifications)
 
 **Step 1**: Update `background.js` initialization:
+
 ```javascript
 if (!settings) {
   updates.settings = {
@@ -231,6 +258,7 @@ if (!settings) {
 ```
 
 **Step 2**: Add UI control in `popup.html`:
+
 ```html
 <div class="setting">
   <label>
@@ -241,6 +269,7 @@ if (!settings) {
 ```
 
 **Step 3**: Bind event listener in `popup.js`:
+
 ```javascript
 function setupEventListeners() {
   // ... existing listeners ...
@@ -249,6 +278,7 @@ function setupEventListeners() {
 ```
 
 **Step 4**: Load/save in `popup.js` `loadSettings()` and `saveSettings()`:
+
 ```javascript
 async function loadSettings() {
   if (settings) {
@@ -268,6 +298,7 @@ async function saveSettings() {
 ### Example 2: Add a New Endpoint Action (e.g., Clear All Counts)
 
 **In `background.js` message listener**:
+
 ```javascript
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   switch (request.action) {
@@ -290,6 +321,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 ```
 
 **In `popup.js` to trigger it**:
+
 ```javascript
 document.getElementById('clearCountsBtn').addEventListener('click', async () => {
   try {
@@ -304,6 +336,7 @@ document.getElementById('clearCountsBtn').addEventListener('click', async () => 
 ### Example 3: Customize Notification Format
 
 **In `background.js` `notifyNewTickets()`**:
+
 ```javascript
 async function notifyNewTickets(endpointName, newTickets, totalCount, settings, endpoint) {
   // BEFORE:
@@ -334,6 +367,7 @@ async function notifyNewTickets(endpointName, newTickets, totalCount, settings, 
 ### Example 4: Add Different Audio Tones
 
 **In `offscreen.js` `playAudio()`**:
+
 ```javascript
 function playAudio({ type, volume = 0.3 }) {
   if (type === 'beep') {
@@ -381,6 +415,7 @@ function playAudio({ type, volume = 0.3 }) {
 ```
 
 **Then call in `background.js`**:
+
 ```javascript
 async function playNotificationSound() {
   try {
@@ -400,6 +435,7 @@ async function playNotificationSound() {
 ### Example 5: Filter Endpoints by Group Before Checking
 
 **In `background.js` `checkAllEndpoints()`**:
+
 ```javascript
 async function checkAllEndpoints() {
   console.log('Checking all endpoints...');
@@ -449,6 +485,7 @@ The project maintains minimal, consolidated documentation (4 core files):
 | install-guide.html | Visual Installation Guide: Step-by-step HTML format with styling | Visual Learners |
 
 **Documentation Removed** (Consolidated or Completed):
+
 - `PHASES.md` - Removed (roadmap complete; phase history preserved in TESTING.md collapsed reference)
 - `COVERAGE_SETUP.md` - Removed (merged into TESTING.md)
 - `FINAL_REPORT.md` - Removed (historical completion report, no ongoing reference)
@@ -461,6 +498,7 @@ The project maintains minimal, consolidated documentation (4 core files):
 The test count badge (`🧪 Tests Passing`) reflects actual passing test count: **68 tests** (21 Phase 1 + 27 Phase 2 + 20 Phase 3).
 
 **When to Update**:
+
 - On every new version release (recommended)
 - After running significant test additions
 - Before creating version tags
@@ -468,16 +506,19 @@ The test count badge (`🧪 Tests Passing`) reflects actual passing test count: 
 **How to Update Badge**:
 
 Run tests and capture count:
+
 ```bash
 npm test 2>&1 | grep "Tests:"
 ```
 
 Update README.md badge URL with **exact sed pattern**:
+
 ```bash
 sed -i '' 's/tests-68%20passing/tests-NEW_COUNT%20passing/g' README.md
 ```
 
 **Badge Location in README.md**:
+
 ```markdown
 [![🧪 Tests Passing](https://img.shields.io/badge/tests-68%20passing-brightgreen?style=flat-square&logo=jest)]
 ```
@@ -505,6 +546,7 @@ sed -i '' 's/tests-68%20passing/tests-NEW_COUNT%20passing/g' README.md
    - [ ] No hardcoded Zendesk domains (use placeholders)
 
 5. **Validate documentation links**:
+
    ```bash
    grep -r "PHASES.md\|COVERAGE_SETUP.md\|FINAL_REPORT.md\|RELEASE_TEST.md" . --include="*.md" --include="*.html" 2>/dev/null | grep -v ".git"
    ```
@@ -516,28 +558,33 @@ sed -i '' 's/tests-68%20passing/tests-NEW_COUNT%20passing/g' README.md
 **On each release**: Verify install-guide.html matches README.md
 
 **Installation Methods**:
+
 - [ ] Steps match README.md in order and detail
 - [ ] File names listed are current (manifest.json, background.js, popup.html, popup.css, popup.js, icons)
 - [ ] `chrome://extensions/` URL is correct
 - [ ] Developer mode instructions match Chrome UI
 
 **Feature Descriptions**:
+
 - [ ] Feature names are identical between files
 - [ ] Descriptions are consistent
 - [ ] Any new README.md features are reflected in HTML
 
 **Troubleshooting & Links**:
+
 - [ ] install-guide.html links to README.md troubleshooting
 - [ ] Common issues mentioned in both
 - [ ] Installation verification steps present
 
 **Domain & API References**:
+
 - [ ] Zendesk domains use placeholders (`your-domain.zendesk.com`)
 - [ ] API endpoint format current (`/api/v2/search.json`)
 - [ ] Search examples valid for current Zendesk API
 - [ ] No hardcoded specific instances
 
 **Version Info**:
+
 - [ ] No specific version numbers in install-guide.html (v3.x.x)
 - [ ] README.md Changelog is current
 - [ ] Installation steps are generic (work for any version)
