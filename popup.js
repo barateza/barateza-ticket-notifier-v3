@@ -1,6 +1,8 @@
 // Zendesk Ticket Monitor - Popup Script
 // Handles user interface interactions and settings management
 
+import { validateEndpointUrl, validateEndpoint } from './utils/validators.js';
+
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Popup loaded');
 
@@ -196,29 +198,9 @@ function hideLoading() {
 async function handleTestEndpoint() {
     const url = document.getElementById('endpointUrl').value.trim();
     
-    if (!url) {
-        showError('Please enter a URL to test');
-        return;
-    }
-    
-    try {
-        const urlObj = new URL(url);
-        const hostname = urlObj.hostname;
-        // Validate hostname is a Zendesk subdomain: must end with '.zendesk.com'
-        // and have a non-empty subdomain part
-        const hostnameParts = hostname.split('.');
-        const isValidZendeskDomain = 
-            hostnameParts.length >= 3 &&
-            hostnameParts[hostnameParts.length - 2] === 'zendesk' &&
-            hostnameParts[hostnameParts.length - 1] === 'com' &&
-            hostnameParts[0].length > 0;
-        
-        if (!isValidZendeskDomain) {
-            showError('URL must be a Zendesk domain (*.zendesk.com)');
-            return;
-        }
-    } catch (error) {
-        showError('Please enter a valid URL');
+    const validation = validateEndpointUrl(url);
+    if (!validation.valid) {
+        showError(validation.error);
         return;
     }
     
@@ -304,13 +286,13 @@ async function saveSettings() {
             document.body.classList.remove('dark-mode');
         }
 
-        // Update alarm interval if changed
-        if (settings.checkInterval !== 1) {
-            await chrome.alarms.clear('ticketCheck');
-            await chrome.alarms.create('ticketCheck', { 
-                periodInMinutes: settings.checkInterval 
-            });
-        }
+        // Always update alarm interval to match new setting (minimum 1 minute)
+        const interval = Math.max(1, settings.checkInterval);
+        await chrome.alarms.clear('ticketCheck');
+        await chrome.alarms.create('ticketCheck', { 
+            periodInMinutes: interval 
+        });
+        console.log(`Alarm interval updated to ${interval} minutes`);
 
     } catch (error) {
         console.error('Error saving settings:', error);
@@ -497,69 +479,14 @@ async function handleSaveEndpoint() {
     const name = document.getElementById('endpointName').value.trim();
     const url = document.getElementById('endpointUrl').value.trim();
 
-    // Validation
-    if (!name) {
-        showError('Please enter a name for the endpoint');
-        return;
-    }
-
-    if (name.length > 50) {
-        showError('Endpoint name must be less than 50 characters');
-        return;
-    }
-
-    if (!url) {
-        showError('Please enter a URL for the endpoint');
-        return;
-    }
-
-    // Validate URL format
-    try {
-        const urlObj = new URL(url);
-        const hostname = urlObj.hostname;
-        // Validate hostname is a Zendesk subdomain: must end with '.zendesk.com'
-        // and have a non-empty subdomain part
-        const hostnameParts = hostname.split('.');
-        const isValidZendeskDomain = 
-            hostnameParts.length >= 3 &&
-            hostnameParts[hostnameParts.length - 2] === 'zendesk' &&
-            hostnameParts[hostnameParts.length - 1] === 'com' &&
-            hostnameParts[0].length > 0;
-        
-        if (!isValidZendeskDomain) {
-            showError('URL must be a Zendesk domain (*.zendesk.com)');
-            return;
-        }
-        
-        // Validate URL is an API endpoint by checking pathname
-        const hasApiPath = urlObj.pathname.includes('/api/v2/search');
-        
-        if (!hasApiPath) {
-            showError('URL must be a Zendesk API endpoint');
-            return;
-        }
-        
-        // Validate search query parameter exists
-        if (!urlObj.searchParams.has('query')) {
-            showError('URL must include a search query parameter');
-            return;
-        }
-    } catch (error) {
-        showError('Please enter a valid URL');
-        return;
-    }
-
     try {
         const { endpoints = [] } = await chrome.storage.local.get(['endpoints']);
 
-        // Check for duplicate endpoints
-        const duplicate = endpoints.some(endpoint => 
-            endpoint.url.toLowerCase() === url.toLowerCase() || 
-            endpoint.name.toLowerCase() === name.toLowerCase()
-        );
-        
-        if (duplicate) {
-            showError('Endpoint with this name or URL already exists');
+        // Validate endpoint
+        const validation = validateEndpoint({ name, url }, endpoints);
+        if (!validation.valid) {
+            // Show first error
+            showError(validation.errors[0]);
             return;
         }
 

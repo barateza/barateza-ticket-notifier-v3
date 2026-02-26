@@ -159,10 +159,16 @@ function getRemainingSnoozeTime() {
 async function startMonitoring() {
   console.log('Starting Zendesk monitoring');
 
+  // Get current settings to determine check interval
+  const { settings } = await chrome.storage.local.get(['settings']);
+  const interval = settings?.checkInterval || 1;
+
   // Create periodic alarm (minimum 1 minute)
   await chrome.alarms.create('ticketCheck', { 
-    periodInMinutes: 1 
+    periodInMinutes: Math.max(1, interval) 
   });
+
+  console.log(`Monitoring alarm created with ${Math.max(1, interval)} minute interval`);
 
   // Initial check
   checkAllEndpoints();
@@ -187,11 +193,20 @@ async function checkAllEndpoints() {
       return;
     }
 
-    for (const endpoint of endpoints) {
-      if (endpoint.enabled) {
-        await checkEndpoint(endpoint, settings);
-      }
+    // Check endpoints in parallel with concurrency control (max 3 at a time)
+    const enabledEndpoints = endpoints.filter(endpoint => endpoint.enabled);
+    const concurrency = 3;
+    const results = [];
+
+    for (let i = 0; i < enabledEndpoints.length; i += concurrency) {
+      const batch = enabledEndpoints.slice(i, i + concurrency);
+      const batchResults = await Promise.all(
+        batch.map(endpoint => checkEndpoint(endpoint, settings))
+      );
+      results.push(...batchResults);
     }
+
+    console.log(`Completed checking ${enabledEndpoints.length} endpoints`);
   } catch (error) {
     console.error('Error checking endpoints:', error);
   }
@@ -252,10 +267,17 @@ async function checkEndpoint(endpoint, settings, retryCount = 0) {
 
   } catch (error) {
     console.error(`Error checking ${endpoint.name}:`, error);
-    if (retryCount < maxRetries && !['AbortError', 'TypeError'].includes(error.name)) {
+    
+    // Retry logic: 
+    // - Retry on 5xx errors (already handled)
+    // - Retry on network errors (TypeError)
+    // - Do NOT retry on timeouts (AbortError) to avoid prolonged delays
+    if (retryCount < maxRetries && error.name !== 'AbortError') {
       console.log(`Retrying ${endpoint.name} (${retryCount + 1}/${maxRetries})`);
       await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
       return checkEndpoint(endpoint, settings, retryCount + 1);
+    } else if (error.name === 'AbortError') {
+      console.error(`Endpoint ${endpoint.name} timed out after 10 seconds`);
     }
   }
 }

@@ -1,3 +1,5 @@
+import { validateEndpointUrl, validateEndpointName, validateEndpoint, checkForDuplicates } from '../utils/validators.js';
+
 describe('Background Service Worker - High Priority Functions', () => {
   let mockStorage;
   let mockChrome;
@@ -99,48 +101,25 @@ describe('Background Service Worker - High Priority Functions', () => {
       const invalidUrl = 'not-a-url';
       const internalUrl = 'http://localhost/api/v2/search.json';
 
-      // Validation logic
-      const isValidUrl = (url) => {
-        try {
-          const parsed = new URL(url);
-          const hostnameParts = parsed.hostname.split('.');
-          const isValidZendeskDomain = 
-            hostnameParts.length >= 3 &&
-            hostnameParts[hostnameParts.length - 2] === 'zendesk' &&
-            hostnameParts[hostnameParts.length - 1] === 'com' &&
-            hostnameParts[0].length > 0;
-          
-          return parsed.protocol === 'https:' && isValidZendeskDomain;
-        } catch {
-          return false;
-        }
-      };
+      const validResult = validateEndpointUrl(validUrl);
+      const invalidResult = validateEndpointUrl(invalidUrl);
+      const internalResult = validateEndpointUrl(internalUrl);
 
-      expect(isValidUrl(validUrl)).toBe(true);
-      expect(isValidUrl(invalidUrl)).toBe(false);
-      expect(isValidUrl(internalUrl)).toBe(false);
-    });
-
-    test('should prevent duplicate endpoints', () => {
-      const existingUrl = 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+status:new';
-      const endpoints = [
-        { id: 1, url: existingUrl },
-        { id: 2, url: 'https://other.zendesk.com/api/v2/search.json?query=type:ticket+status:open' }
-      ];
-
-      const isDuplicate = (url) => endpoints.some(e => e.url === url);
-
-      expect(isDuplicate(existingUrl)).toBe(true);
-      expect(isDuplicate('https://new.zendesk.com/api/v2/search.json')).toBe(false);
+      expect(validResult.valid).toBe(true);
+      expect(invalidResult.valid).toBe(false);
+      expect(internalResult.valid).toBe(false);
     });
 
     test('should validate endpoint name is not empty', () => {
-      const isValidName = (name) => typeof name === 'string' && name.trim().length > 0 && name.length <= 100;
+      const validResult = validateEndpointName('AMER - New Tickets');
+      const emptyResult = validateEndpointName('');
+      const whitespaceResult = validateEndpointName('   ');
+      const tooLongResult = validateEndpointName('a'.repeat(51));
 
-      expect(isValidName('AMER - New Tickets')).toBe(true);
-      expect(isValidName('')).toBe(false);
-      expect(isValidName('   ')).toBe(false);
-      expect(isValidName('a'.repeat(101))).toBe(false);
+      expect(validResult.valid).toBe(true);
+      expect(emptyResult.valid).toBe(false);
+      expect(whitespaceResult.valid).toBe(false);
+      expect(tooLongResult.valid).toBe(false);
     });
   });
 

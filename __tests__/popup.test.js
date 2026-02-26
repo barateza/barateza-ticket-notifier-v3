@@ -1,3 +1,5 @@
+import { validateEndpointUrl, validateEndpointName, validateEndpoint, checkForDuplicates } from '../utils/validators.js';
+
 describe('Popup UI - Phase 2', () => {
   let mockStorage;
   let mockDocument;
@@ -56,46 +58,22 @@ describe('Popup UI - Phase 2', () => {
   // ==================== 2.1 Form Validation Tests ====================
   describe('Form Validation', () => {
     test('should validate endpoint URL is required', () => {
-      const url = '';
-      const isValidUrl = (u) => typeof u === 'string' && u.trim().length > 0;
-
-      expect(isValidUrl(url)).toBe(false);
+      const result = validateEndpointUrl('');
+      expect(result.valid).toBe(false);
     });
 
     test('should validate endpoint URL format (HTTPS + Zendesk domain)', () => {
-      const isValidUrl = (url) => {
-        try {
-          const parsed = new URL(url);
-          const hostnameParts = parsed.hostname.split('.');
-          const isValidZendeskDomain = 
-            hostnameParts.length >= 3 &&
-            hostnameParts[hostnameParts.length - 2] === 'zendesk' &&
-            hostnameParts[hostnameParts.length - 1] === 'com' &&
-            hostnameParts[0].length > 0;
-          
-          // Check that pathname contains /api/v2/search.json
-          const hasApiPath = 
-            parsed.pathname.includes('/api/v2/search');
-          
-          return parsed.protocol === 'https:' && isValidZendeskDomain && hasApiPath;
-        } catch {
-          return false;
-        }
-      };
-
-      expect(isValidUrl('https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket')).toBe(true);
-      expect(isValidUrl('http://cpanel.zendesk.com/api/v2/search.json')).toBe(false);
-      expect(isValidUrl('https://example.com/api')).toBe(false);
-      expect(isValidUrl('not-a-url')).toBe(false);
+      expect(validateEndpointUrl('https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket').valid).toBe(true);
+      expect(validateEndpointUrl('http://cpanel.zendesk.com/api/v2/search.json').valid).toBe(false);
+      expect(validateEndpointUrl('https://example.com/api').valid).toBe(false);
+      expect(validateEndpointUrl('not-a-url').valid).toBe(false);
     });
 
     test('should validate endpoint name is required and within length limits', () => {
-      const isValidName = (name) => typeof name === 'string' && name.trim().length > 0 && name.length <= 100;
-
-      expect(isValidName('AMER - New Tickets')).toBe(true);
-      expect(isValidName('')).toBe(false);
-      expect(isValidName('   ')).toBe(false);
-      expect(isValidName('a'.repeat(101))).toBe(false);
+      expect(validateEndpointName('AMER - New Tickets').valid).toBe(true);
+      expect(validateEndpointName('').valid).toBe(false);
+      expect(validateEndpointName('   ').valid).toBe(false);
+      expect(validateEndpointName('a'.repeat(51)).valid).toBe(false);
     });
 
     test('should prevent duplicate endpoint URLs', (done) => {

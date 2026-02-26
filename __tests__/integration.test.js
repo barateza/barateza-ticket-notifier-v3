@@ -1,3 +1,5 @@
+import { validateEndpointUrl, validateEndpointName, validateEndpoint, checkForDuplicates } from '../utils/validators.js';
+
 describe('Integration Tests - Phase 3', () => {
   let mockStorage;
   let mockEndpointCounts;
