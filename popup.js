@@ -66,6 +66,23 @@ function setupEventListeners() {
             hideSnoozeModal();
         }
     });
+
+    // Delegated actions for endpoints list
+    document.getElementById('endpointsList').addEventListener('click', async (e) => {
+        const toggleBtn = e.target.closest('.toggle-endpoint-btn');
+        if (toggleBtn) {
+            const index = parseInt(toggleBtn.dataset.index, 10);
+            await toggleEndpoint(index);
+            return;
+        }
+
+        const deleteBtn = e.target.closest('.delete-endpoint-btn');
+        if (deleteBtn) {
+            const index = parseInt(deleteBtn.dataset.index, 10);
+            await deleteEndpoint(index);
+            return;
+        }
+    });
 }
 
 // Show snooze modal
@@ -88,7 +105,7 @@ async function handleConfirmSnooze() {
             action: 'setSnooze',
             duration: duration
         });
-        
+
         if (response.success) {
             hideSnoozeModal();
             showSuccess(duration === 0 ? 'Notifications snoozed indefinitely' : `Notifications snoozed for ${duration} minutes`);
@@ -111,7 +128,7 @@ async function handleCancelSnooze() {
         const response = await chrome.runtime.sendMessage({
             action: 'clearSnooze'
         });
-        
+
         if (response.success) {
             await updateSnoozeStatus();
             showSuccess('Notifications no longer snoozed');
@@ -132,12 +149,12 @@ async function updateSnoozeStatus() {
         const response = await chrome.runtime.sendMessage({
             action: 'getSnoozeStatus'
         });
-        
+
         console.log('updateSnoozeStatus received:', response);
-        
+
         const snoozeStatus = document.getElementById('snoozeStatus');
         const snoozeRemaining = document.getElementById('snoozeRemaining');
-        
+
         if (response.isSnoozed) {
             console.log('Snooze is active, showing banner');
             snoozeStatus.classList.remove('hidden');
@@ -165,13 +182,13 @@ async function updateSnoozeStatus() {
 function startSnoozeTimer() {
     const timer = setInterval(async () => {
         await updateSnoozeStatus();
-        
+
         // Check if snooze is still active
         try {
             const response = await chrome.runtime.sendMessage({
                 action: 'getSnoozeStatus'
             });
-            
+
             if (!response.isSnoozed) {
                 clearInterval(timer);
             }
@@ -197,17 +214,17 @@ function hideLoading() {
 // Handle endpoint test
 async function handleTestEndpoint() {
     const url = document.getElementById('endpointUrl').value.trim();
-    
+
     const validation = validateEndpointUrl(url);
     if (!validation.valid) {
         showError(validation.error);
         return;
     }
-    
+
     showLoading('Testing endpoint connection...');
     const testResult = await testEndpoint(url);
     hideLoading();
-    
+
     if (testResult.success) {
         showSuccess(testResult.message);
     } else {
@@ -252,7 +269,7 @@ async function loadSettings() {
             document.getElementById('notificationEnabled').checked = settings.notificationEnabled !== false;
             document.getElementById('checkInterval').value = settings.checkInterval || 1;
             document.getElementById('darkMode').checked = settings.darkMode === true;
-            
+
             // Apply dark mode
             if (settings.darkMode) {
                 document.body.classList.add('dark-mode');
@@ -289,8 +306,8 @@ async function saveSettings() {
         // Always update alarm interval to match new setting (minimum 1 minute)
         const interval = Math.max(1, settings.checkInterval);
         await chrome.alarms.clear('ticketCheck');
-        await chrome.alarms.create('ticketCheck', { 
-            periodInMinutes: interval 
+        await chrome.alarms.create('ticketCheck', {
+            periodInMinutes: interval
         });
         console.log(`Alarm interval updated to ${interval} minutes`);
 
@@ -335,7 +352,7 @@ function createEndpointElement(endpoint, index) {
         // Find safe truncation point that doesn't split % encoding
         let truncPoint = 60;
         // Check if we're in the middle of %XX encoding
-        if (endpoint.url[truncPoint - 1] === '%' || 
+        if (endpoint.url[truncPoint - 1] === '%' ||
             (endpoint.url[truncPoint - 2] === '%' && /[0-9A-Fa-f]/.test(endpoint.url[truncPoint - 1]))) {
             // Back up to before the % sign
             truncPoint = endpoint.url.lastIndexOf('%', truncPoint - 1);
@@ -353,10 +370,10 @@ function createEndpointElement(endpoint, index) {
             </div>
         </div>
         <div class="endpoint-actions">
-            <button class="btn btn-secondary" onclick="toggleEndpoint(${index})">
+            <button class="btn btn-secondary toggle-endpoint-btn" data-index="${index}">
                 ${endpoint.enabled ? 'Disable' : 'Enable'}
             </button>
-            <button class="btn btn-danger" onclick="deleteEndpoint(${index})">
+            <button class="btn btn-danger delete-endpoint-btn" data-index="${index}">
                 Delete
             </button>
         </div>
@@ -366,7 +383,7 @@ function createEndpointElement(endpoint, index) {
 }
 
 // Toggle endpoint enabled/disabled
-window.toggleEndpoint = async function(index) {
+async function toggleEndpoint(index) {
     try {
         const { endpoints } = await chrome.storage.local.get(['endpoints']);
 
@@ -382,10 +399,10 @@ window.toggleEndpoint = async function(index) {
         console.error('Error toggling endpoint:', error);
         showError('Failed to toggle endpoint');
     }
-};
+}
 
 // Delete an endpoint
-window.deleteEndpoint = async function(index) {
+async function deleteEndpoint(index) {
     if (!confirm('Are you sure you want to delete this endpoint?')) {
         return;
     }
@@ -405,7 +422,7 @@ window.deleteEndpoint = async function(index) {
         console.error('Error deleting endpoint:', error);
         showError('Failed to delete endpoint');
     }
-};
+}
 
 // Handle toggle monitoring button
 async function handleToggleMonitoring() {
@@ -414,15 +431,15 @@ async function handleToggleMonitoring() {
     const newState = !isEnabled;
 
     try {
-        const response = await chrome.runtime.sendMessage({ 
-            action: 'toggleEnabled', 
-            enabled: newState 
+        const response = await chrome.runtime.sendMessage({
+            action: 'toggleEnabled',
+            enabled: newState
         });
 
         if (response && response.success) {
             btn.dataset.enabled = newState.toString();
-            btn.innerHTML = newState ? 
-                '<span class="btn-icon">⏸️</span> Pause' : 
+            btn.innerHTML = newState ?
+                '<span class="btn-icon">⏸️</span> Pause' :
                 '<span class="btn-icon">▶️</span> Resume';
 
             await updateStatus();
@@ -517,16 +534,16 @@ async function testEndpoint(url) {
     try {
         const urlObj = new URL(url);
         const domain = urlObj.hostname;
-        
+
         // Get authentication cookies
         const cookies = await chrome.cookies.getAll({
             domain: domain
         });
-        
+
         const cookieString = cookies
-            .filter(cookie => 
-                cookie.name.includes('session') || 
-                cookie.name.includes('auth') || 
+            .filter(cookie =>
+                cookie.name.includes('session') ||
+                cookie.name.includes('auth') ||
                 cookie.name.includes('_zendesk') ||
                 cookie.name.includes('csrf') ||
                 cookie.name === '_help_center_session'
@@ -550,7 +567,7 @@ async function testEndpoint(url) {
         }
 
         const data = await response.json();
-        
+
         if (!data.count !== undefined) {
             throw new Error('Invalid API response format');
         }
