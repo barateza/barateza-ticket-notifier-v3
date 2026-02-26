@@ -56,6 +56,7 @@ Recommended semantic versioning: `v{MAJOR}.{MINOR}.{PATCH}`
 - `popup.html`, `popup.js`, `popup.css`
 - `offscreen.html`, `offscreen.js`
 - `icons/` folder
+- `utils/` folder
 
 ❌ **Excluded:**
 - `node_modules/`
@@ -98,7 +99,7 @@ mkdir -p barateza-ticket-notifier-v3.1.0
 
 # Copy extension files
 cp background.js manifest.json popup.* offscreen.* -t barateza-ticket-notifier-v3.1.0/
-cp -r icons/ barateza-ticket-notifier-v3.1.0/
+cp -r icons/ utils/ barateza-ticket-notifier-v3.1.0/
 
 # Create zip
 zip -r barateza-ticket-notifier-v3.1.0.zip barateza-ticket-notifier-v3.1.0/

@@ -59,6 +59,7 @@ jobs:
           cp offscreen.html barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
           cp offscreen.js barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
           cp -r icons/ barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
+          cp -r utils/ barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
           
           # Create zip
           zip -r barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}.zip barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
@@ -91,6 +92,7 @@ jobs:
             - offscreen.html, offscreen.js (Audio playback)
             - manifest.json (Configuration)
             - icons/ (Extension icons)
+            - utils/ (Utility functions)
           draft: false
           prerelease: false
         env:
