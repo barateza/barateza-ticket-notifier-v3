@@ -1,8 +1,7 @@
-// Zendesk Ticket Monitor - Background Service Worker
 // Handles periodic monitoring, notifications, and cookie authentication
+import Logger from './utils/logger.js';
 
 let endpointCounts = new Map(); // Store previous counts for each endpoint
-let isEnabled = true;
 let notificationEndpointMap = new Map(); // Map notificationId to endpoint URL
 let lastCheckTime = 0;
 const MIN_REFRESH_INTERVAL = 30000; // 30 seconds minimum between manual refreshes
@@ -10,7 +9,7 @@ let snoozeEndTime = null; // Timestamp when snooze ends (null = not snoozed)
 
 // Initialize extension
 chrome.runtime.onInstalled.addListener(async (details) => {
-  console.log('Extension event:', details.reason);
+  Logger.info('Extension event:', details.reason);
 
   // Get existing data
   const { endpoints, settings } = await chrome.storage.local.get(['endpoints', 'settings']);
@@ -37,16 +36,31 @@ chrome.runtime.onInstalled.addListener(async (details) => {
       checkInterval: 1,
       soundEnabled: true,
       notificationEnabled: true,
-      darkMode: false
+      darkMode: false,
+      debugMode: false
     };
     console.log('Setting default settings');
   } else {
     // Add missing properties to existing settings
+    let changed = false;
     if (!('darkMode' in settings)) {
       settings.darkMode = false;
+      changed = true;
+    }
+    if (!('debugMode' in settings)) {
+      settings.debugMode = false;
+      changed = true;
+    }
+    if (changed) {
       updates.settings = settings;
     }
-    console.log('Preserving existing settings');
+    Logger.info('Preserving existing settings');
+  }
+
+  // Initialize Logger with current setting
+  const currentSettings = updates.settings || settings;
+  if (currentSettings) {
+    Logger.setDebugMode(currentSettings.debugMode);
   }
 
   // Only update storage if we have new data to set
@@ -84,7 +98,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 // Snooze notifications for a specific duration
 async function setSnooze(durationMinutes) {
   const now = Date.now();
-  
+
   if (durationMinutes === 0) {
     // "Until I turn back on" - set snooze to a far future time
     snoozeEndTime = now + (1000 * 60 * 60 * 24 * 365); // 1 year
@@ -102,16 +116,16 @@ async function setSnooze(durationMinutes) {
 
   // Schedule alarm to clear snooze
   if (durationMinutes > 0) {
-    chrome.alarms.create('snoozeEnd', { 
-      delayInMinutes: durationMinutes 
+    chrome.alarms.create('snoozeEnd', {
+      delayInMinutes: durationMinutes
     });
   }
 
   console.log(`Notifications snoozed ${durationMinutes === 0 ? 'indefinitely' : `for ${durationMinutes} minutes`}`);
-  
+
   // Update badge to indicate snooze state
   await updateBadge();
-  
+
   return { success: true, endTime: snoozeEndTime };
 }
 
@@ -121,37 +135,37 @@ async function clearSnooze() {
   await chrome.storage.local.remove('snoozeState');
   await chrome.alarms.clear('snoozeEnd');
   console.log('Notifications no longer snoozed');
-  
+
   // Update badge
   await updateBadge();
-  
+
   return { success: true };
 }
 
 // Check if notifications are currently snoozed
 function isSnoozed() {
   if (!snoozeEndTime) return false;
-  
+
   const now = Date.now();
   if (now >= snoozeEndTime) {
     // Auto-clear expired snooze
     clearSnooze();
     return false;
   }
-  
+
   return true;
 }
 
 // Get remaining snooze time in minutes
 function getRemainingSnoozeTime() {
   if (!snoozeEndTime) return 0;
-  
+
   const now = Date.now();
   if (now >= snoozeEndTime) {
     clearSnooze();
     return 0;
   }
-  
+
   return Math.ceil((snoozeEndTime - now) / 60000); // minutes
 }
 
@@ -164,8 +178,8 @@ async function startMonitoring() {
   const interval = settings?.checkInterval || 1;
 
   // Create periodic alarm (minimum 1 minute)
-  await chrome.alarms.create('ticketCheck', { 
-    periodInMinutes: Math.max(1, interval) 
+  await chrome.alarms.create('ticketCheck', {
+    periodInMinutes: Math.max(1, interval)
   });
 
   console.log(`Monitoring alarm created with ${Math.max(1, interval)} minute interval`);
@@ -175,9 +189,12 @@ async function startMonitoring() {
 }
 
 // Handle alarm events
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === 'ticketCheck' && isEnabled) {
-    checkAllEndpoints();
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === 'ticketCheck') {
+    const { isEnabled = true } = await chrome.storage.local.get(['isEnabled']);
+    if (isEnabled) {
+      checkAllEndpoints();
+    }
   }
 });
 
@@ -208,7 +225,7 @@ async function checkAllEndpoints() {
 
     console.log(`Completed checking ${enabledEndpoints.length} endpoints`);
   } catch (error) {
-    console.error('Error checking endpoints:', error);
+    Logger.error('Error checking endpoints:', error);
   }
 }
 
@@ -238,7 +255,7 @@ async function checkEndpoint(endpoint, settings, retryCount = 0) {
     });
 
     if (!response.ok) {
-      console.error(`HTTP ${response.status} for ${endpoint.name}`);
+      Logger.error(`HTTP ${response.status} for ${endpoint.name}`);
       if (response.status >= 500 && retryCount < maxRetries) {
         console.log(`Retrying ${endpoint.name} (${retryCount + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
@@ -266,8 +283,8 @@ async function checkEndpoint(endpoint, settings, retryCount = 0) {
     updateBadge();
 
   } catch (error) {
-    console.error(`Error checking ${endpoint.name}:`, error);
-    
+    Logger.error(`Error checking ${endpoint.name}:`, error);
+
     // Retry logic: 
     // - Retry on 5xx errors (already handled)
     // - Retry on network errors (TypeError)
@@ -277,7 +294,7 @@ async function checkEndpoint(endpoint, settings, retryCount = 0) {
       await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
       return checkEndpoint(endpoint, settings, retryCount + 1);
     } else if (error.name === 'AbortError') {
-      console.error(`Endpoint ${endpoint.name} timed out after 10 seconds`);
+      Logger.error(`Endpoint ${endpoint.name} timed out after 10 seconds`);
     }
   }
 }
@@ -290,9 +307,9 @@ async function getZendeskCookies(domain) {
     });
 
     // Filter for relevant authentication cookies
-    const authCookies = cookies.filter(cookie => 
-      cookie.name.includes('session') || 
-      cookie.name.includes('auth') || 
+    const authCookies = cookies.filter(cookie =>
+      cookie.name.includes('session') ||
+      cookie.name.includes('auth') ||
       cookie.name.includes('_zendesk') ||
       cookie.name.includes('csrf') ||
       cookie.name === '_help_center_session'
@@ -307,7 +324,7 @@ async function getZendeskCookies(domain) {
     return cookieString;
 
   } catch (error) {
-    console.error('Error getting cookies:', error);
+    Logger.error('Error getting cookies:', error);
     return '';
   }
 }
@@ -347,15 +364,15 @@ async function notifyNewTickets(endpointName, newTickets, totalCount, settings, 
 async function playNotificationSound() {
   try {
     await createOffscreen();
-    await chrome.runtime.sendMessage({ 
-      play: { 
-        type: 'beep', 
-        volume: 0.3 
-      } 
+    await chrome.runtime.sendMessage({
+      play: {
+        type: 'beep',
+        volume: 0.3
+      }
     });
     console.log('Played notification sound');
   } catch (error) {
-    console.error('Error playing sound:', error);
+    Logger.error('Error playing sound:', error);
   }
 }
 
@@ -372,13 +389,13 @@ async function createOffscreen() {
 // Update extension badge with total ticket count
 async function updateBadge() {
   const totalCount = Array.from(endpointCounts.values()).reduce((sum, count) => sum + count, 0);
-  
+
   // If notifications are snoozed, show special badge
   if (isSnoozed()) {
     await chrome.action.setBadgeText({
       text: '⏰'
     });
-    
+
     await chrome.action.setBadgeBackgroundColor({
       color: '#F39C12' // Orange
     });
@@ -395,70 +412,61 @@ async function updateBadge() {
 
 // Handle messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  // Handle async actions in a separate function
-  (async () => {
-    switch (request.action) {
-      case 'refreshNow':
-        const now = Date.now();
-        if (now - lastCheckTime < MIN_REFRESH_INTERVAL) {
-          console.log('Refresh rate limited');
-          sendResponse({ 
-            success: false, 
-            error: 'Please wait 30 seconds before refreshing again' 
-          });
-          return;
-        }
-        lastCheckTime = now;
-        console.log('Manual refresh requested');
-        checkAllEndpoints();
-        sendResponse({ success: true });
-        break;
-
-      case 'toggleEnabled':
-        isEnabled = request.enabled;
-        console.log(`Monitoring ${isEnabled ? 'enabled' : 'disabled'}`);
-        sendResponse({ success: true });
-        break;
-
-      case 'getStatus':
-        sendResponse({ 
-          enabled: isEnabled,
-          counts: Array.from(endpointCounts.entries()),
-          lastCheck: lastCheckTime,
-          isSnoozed: isSnoozed(),
-          snoozeEndTime: snoozeEndTime
-        });
-        break;
-
-      case 'setSnooze':
-        const setSnoozeResponse = await setSnooze(request.duration);
-        sendResponse(setSnoozeResponse);
-        break;
-        
-      case 'clearSnooze':
-        console.log('clearSnooze action received, clearing snooze...');
-        const clearResponse = await clearSnooze();
-        console.log('clearSnooze completed, isSnoozed:', isSnoozed());
-        sendResponse(clearResponse);
-        break;
-        
-      case 'getSnoozeStatus':
-        const isSnoozedStatus = isSnoozed();
-        const remainingTime = getRemainingSnoozeTime();
-        console.log('getSnoozeStatus: isSnoozed=', isSnoozedStatus, 'snoozeEndTime=', snoozeEndTime, 'remainingTime=', remainingTime);
-        sendResponse({
-          isSnoozed: isSnoozedStatus,
-          snoozeEndTime: snoozeEndTime,
-          remainingTime: remainingTime
-        });
-        break;
-
-      default:
-        sendResponse({ error: 'Unknown action' });
+  if (request.action === 'refreshNow') {
+    const now = Date.now();
+    if (now - lastCheckTime < MIN_REFRESH_INTERVAL) {
+      console.log('Refresh rate limited');
+      sendResponse({
+        success: false,
+        error: 'Please wait 30 seconds before refreshing again'
+      });
+    } else {
+      lastCheckTime = now;
+      console.log('Manual refresh requested');
+      checkAllEndpoints();
+      sendResponse({ success: true });
     }
-  })();
+  } else if (request.action === 'toggleEnabled') {
+    chrome.storage.local.set({ isEnabled: request.enabled }).then(() => {
+      console.log(`Monitoring ${request.enabled ? 'enabled' : 'disabled'}`);
+      sendResponse({ success: true });
+    });
+    return true; // async
+  } else if (request.action === 'getStatus') {
+    chrome.storage.local.get(['isEnabled']).then(({ isEnabled = true }) => {
+      sendResponse({
+        enabled: isEnabled,
+        counts: Array.from(endpointCounts.entries()),
+        lastCheck: lastCheckTime,
+        isSnoozed: isSnoozed(),
+        snoozeEndTime: snoozeEndTime
+      });
+    });
+    return true; // async
+  } else if (request.action === 'setSnooze') {
+    setSnooze(request.duration).then(sendResponse);
+    return true; // async
+  } else if (request.action === 'clearSnooze') {
+    console.log('clearSnooze action received, clearing snooze...');
+    clearSnooze().then((clearResponse) => {
+      console.log('clearSnooze completed, isSnoozed:', isSnoozed());
+      sendResponse(clearResponse);
+    });
+    return true; // async
+  } else if (request.action === 'getSnoozeStatus') {
+    const isSnoozedStatus = isSnoozed();
+    const remainingTime = getRemainingSnoozeTime();
+    console.log('getSnoozeStatus: isSnoozed=', isSnoozedStatus, 'snoozeEndTime=', snoozeEndTime, 'remainingTime=', remainingTime);
+    sendResponse({
+      isSnoozed: isSnoozedStatus,
+      snoozeEndTime: snoozeEndTime,
+      remainingTime: remainingTime
+    });
+  } else {
+    sendResponse({ error: 'Unknown action' });
+  }
 
-  return true; // Keep message channel open for async response
+  return false; // Sync by default unless returned true above
 });
 
 // Handle notification clicks
@@ -477,4 +485,15 @@ chrome.notifications.onClicked.addListener((notificationId) => {
   chrome.notifications.clear(notificationId);
 });
 
-console.log('Zendesk Ticket Monitor background script loaded');
+// Handle changes to settings (like Debug Mode)
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.settings) {
+    const newSettings = changes.settings.newValue;
+    if (newSettings && 'debugMode' in newSettings) {
+      Logger.setDebugMode(newSettings.debugMode);
+      Logger.info('Debug mode updated:', newSettings.debugMode);
+    }
+  }
+});
+
+Logger.info('Zendesk Ticket Monitor background script loaded');

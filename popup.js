@@ -2,9 +2,10 @@
 // Handles user interface interactions and settings management
 
 import { validateEndpointUrl, validateEndpoint } from './utils/validators.js';
+import Logger from './utils/logger.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('Popup loaded');
+    Logger.info('Popup loaded');
 
     try {
         // Initialize UI
@@ -13,7 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await updateStatus();
         await updateSnoozeStatus();
     } catch (error) {
-        console.error('Error initializing popup:', error);
+        Logger.error('Error initializing popup:', error);
     } finally {
         // Ensure loading indicator is hidden
         hideLoading();
@@ -41,6 +42,7 @@ function setupEventListeners() {
     document.getElementById('notificationEnabled').addEventListener('change', saveSettings);
     document.getElementById('checkInterval').addEventListener('change', saveSettings);
     document.getElementById('darkMode').addEventListener('change', saveSettings);
+    document.getElementById('debugMode').addEventListener('change', saveSettings);
 
     // Endpoint management
     document.getElementById('addEndpointBtn').addEventListener('click', showAddEndpointModal);
@@ -114,7 +116,7 @@ async function handleConfirmSnooze() {
             showError('Failed to snooze notifications');
         }
     } catch (error) {
-        console.error('Error snoozing notifications:', error);
+        Logger.error('Error snoozing notifications:', error);
         showError('Failed to snooze notifications');
     } finally {
         hideLoading();
@@ -136,7 +138,7 @@ async function handleCancelSnooze() {
             showError('Failed to cancel snooze');
         }
     } catch (error) {
-        console.error('Error canceling snooze:', error);
+        Logger.error('Error canceling snooze:', error);
         showError('Failed to cancel snooze');
     } finally {
         hideLoading();
@@ -150,13 +152,13 @@ async function updateSnoozeStatus() {
             action: 'getSnoozeStatus'
         });
 
-        console.log('updateSnoozeStatus received:', response);
+        Logger.info('updateSnoozeStatus received:', response);
 
         const snoozeStatus = document.getElementById('snoozeStatus');
         const snoozeRemaining = document.getElementById('snoozeRemaining');
 
         if (response.isSnoozed) {
-            console.log('Snooze is active, showing banner');
+            Logger.info('Snooze is active, showing banner');
             snoozeStatus.classList.remove('hidden');
             if (response.remainingTime === 0) {
                 snoozeRemaining.textContent = 'Until I turn back on';
@@ -170,11 +172,11 @@ async function updateSnoozeStatus() {
                 snoozeRemaining.textContent = `${hours}h ${minutes}m remaining`;
             }
         } else {
-            console.log('Snooze is not active, hiding banner');
+            Logger.info('Snooze is not active, hiding banner');
             snoozeStatus.classList.add('hidden');
         }
     } catch (error) {
-        console.error('Error getting snooze status:', error);
+        Logger.error('Error getting snooze status:', error);
     }
 }
 
@@ -250,7 +252,7 @@ async function handleRefreshNow() {
             showError(response.error || 'Refresh failed');
         }
     } catch (error) {
-        console.error('Error during refresh:', error);
+        Logger.error('Error during refresh:', error);
         showError('Refresh failed');
     } finally {
         btn.innerHTML = originalText;
@@ -265,10 +267,15 @@ async function loadSettings() {
         const { settings } = await chrome.storage.local.get(['settings']);
 
         if (settings) {
+            Logger.setDebugMode(settings.debugMode);
+        }
+
+        if (settings) {
             document.getElementById('soundEnabled').checked = settings.soundEnabled !== false;
             document.getElementById('notificationEnabled').checked = settings.notificationEnabled !== false;
             document.getElementById('checkInterval').value = settings.checkInterval || 1;
             document.getElementById('darkMode').checked = settings.darkMode === true;
+            document.getElementById('debugMode').checked = settings.debugMode === true;
 
             // Apply dark mode
             if (settings.darkMode) {
@@ -278,7 +285,7 @@ async function loadSettings() {
             }
         }
     } catch (error) {
-        console.error('Error loading settings:', error);
+        Logger.error('Error loading settings:', error);
         showError('Failed to load settings');
     }
 }
@@ -290,11 +297,12 @@ async function saveSettings() {
             soundEnabled: document.getElementById('soundEnabled').checked,
             notificationEnabled: document.getElementById('notificationEnabled').checked,
             checkInterval: parseInt(document.getElementById('checkInterval').value),
-            darkMode: document.getElementById('darkMode').checked
+            darkMode: document.getElementById('darkMode').checked,
+            debugMode: document.getElementById('debugMode').checked
         };
 
         await chrome.storage.local.set({ settings });
-        console.log('Settings saved:', settings);
+        Logger.info('Settings saved:', settings);
 
         // Apply dark mode
         if (settings.darkMode) {
@@ -309,10 +317,10 @@ async function saveSettings() {
         await chrome.alarms.create('ticketCheck', {
             periodInMinutes: interval
         });
-        console.log(`Alarm interval updated to ${interval} minutes`);
+        Logger.info(`Alarm interval updated to ${interval} minutes`);
 
     } catch (error) {
-        console.error('Error saving settings:', error);
+        Logger.error('Error saving settings:', error);
         showError('Failed to save settings');
     }
 }
@@ -336,7 +344,7 @@ async function loadEndpoints() {
         });
 
     } catch (error) {
-        console.error('Error loading endpoints:', error);
+        Logger.error('Error loading endpoints:', error);
         showError('Failed to load endpoints');
     }
 }
@@ -396,7 +404,7 @@ async function toggleEndpoint(index) {
             }
         }
     } catch (error) {
-        console.error('Error toggling endpoint:', error);
+        Logger.error('Error toggling endpoint:', error);
         showError('Failed to toggle endpoint');
     }
 }
@@ -419,7 +427,7 @@ async function deleteEndpoint(index) {
             }
         }
     } catch (error) {
-        console.error('Error deleting endpoint:', error);
+        Logger.error('Error deleting endpoint:', error);
         showError('Failed to delete endpoint');
     }
 }
@@ -446,7 +454,7 @@ async function handleToggleMonitoring() {
             showSuccess(`Monitoring ${newState ? 'resumed' : 'paused'}`);
         }
     } catch (error) {
-        console.error('Error toggling monitoring:', error);
+        Logger.error('Error toggling monitoring:', error);
         showError('Failed to toggle monitoring');
     }
 }
@@ -474,7 +482,7 @@ async function updateStatus() {
             }
         }
     } catch (error) {
-        console.error('Error updating status:', error);
+        Logger.error('Error updating status:', error);
     }
 }
 
@@ -524,7 +532,7 @@ async function handleSaveEndpoint() {
         }
 
     } catch (error) {
-        console.error('Error saving endpoint:', error);
+        Logger.error('Error saving endpoint:', error);
         showError('Failed to save endpoint');
     }
 }
@@ -568,7 +576,7 @@ async function testEndpoint(url) {
 
         const data = await response.json();
 
-        if (!data.count !== undefined) {
+        if (typeof data.count === 'undefined') {
             throw new Error('Invalid API response format');
         }
 
@@ -578,7 +586,7 @@ async function testEndpoint(url) {
             message: `Success: Found ${data.count} tickets`
         };
     } catch (error) {
-        console.error('Endpoint test error:', error);
+        Logger.error('Endpoint test error:', error);
         return {
             success: false,
             message: error.message || 'Failed to connect to endpoint'
@@ -608,10 +616,10 @@ function escapeHtml(text) {
 async function saveEndpoints(endpoints) {
     try {
         await chrome.storage.local.set({ endpoints });
-        console.log('Endpoints saved successfully:', endpoints.length, 'endpoints');
+        Logger.info('Endpoints saved successfully:', endpoints.length, 'endpoints');
         return true;
     } catch (error) {
-        console.error('Failed to save endpoints:', error);
+        Logger.error('Failed to save endpoints:', error);
         showError('Failed to save endpoints. Please try again.');
         return false;
     }
@@ -649,4 +657,4 @@ function showMessage(message, type) {
     }, 3000);
 }
 
-console.log('Popup script loaded');
+Logger.info('Popup script loaded');

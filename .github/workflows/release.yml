@@ -58,6 +58,7 @@ jobs:
           cp popup.css barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
           cp offscreen.html barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
           cp offscreen.js barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
+          cp PRIVACY_POLICY.md barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
           cp -r icons/ barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
           cp -r utils/ barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
           
@@ -91,6 +92,7 @@ jobs:
             - popup.html, popup.js, popup.css (UI)
             - offscreen.html, offscreen.js (Audio playback)
             - manifest.json (Configuration)
+            - PRIVACY_POLICY.md (Privacy Policy)
             - icons/ (Extension icons)
             - utils/ (Utility functions)
           draft: false

@@ -25,6 +25,7 @@ FILES=(
     "popup.css"
     "offscreen.html"
     "offscreen.js"
+    "PRIVACY_POLICY.md"
 )
 
 for file in "${FILES[@]}"; do

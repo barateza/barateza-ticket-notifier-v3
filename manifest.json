@@ -15,7 +15,8 @@
     "*://*.zendesk.com/*"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "action": {
     "default_popup": "popup.html",
@@ -32,6 +33,6 @@
     "128": "icons/icon128.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self'; img-src 'self' data:;"
   }
 }
