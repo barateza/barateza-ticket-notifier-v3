@@ -9,6 +9,12 @@ global.chrome = {
       clear: jest.fn(),
       remove: jest.fn()
     },
+    session: {
+      get: jest.fn(),
+      set: jest.fn(),
+      clear: jest.fn(),
+      remove: jest.fn()
+    },
     onChanged: {
       addListener: jest.fn()
     }

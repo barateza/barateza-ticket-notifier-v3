@@ -42,9 +42,8 @@ class LoggerInstance {
      * @param  {...any} args 
      */
     error(...args) {
-        if (this.debugEnabled) {
-            console.error(...args);
-        }
+        // Always log errors regardless of debug mode to ensure critical issues are visible
+        console.error(...args);
     }
 }
 

@@ -11,11 +11,11 @@
 <body>
     <div class="header">
         <h1>
-            <img src="icons/icon48.png" alt="Icon" class="header-icon">
+            <img src="icons/icon48.png" alt="" aria-hidden="true" class="header-icon" width="24" height="24">
             Zendesk Monitor
         </h1>
-        <div class="status-indicator" id="statusIndicator">
-            <span class="status-dot"></span>
+        <div class="status-indicator" id="statusIndicator" aria-live="polite" aria-label="Monitoring status">
+            <span class="status-dot" aria-hidden="true"></span>
             <span id="statusText">Monitoring</span>
         </div>
     </div>
@@ -40,7 +40,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Snooze Notifications</h3>
-                <button id="closeSnoozeModal" class="close-btn">&times;</button>
+                <button id="closeSnoozeModal" class="close-btn" aria-label="Close">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
@@ -67,7 +67,7 @@
     </div>
 
     <!-- Snooze Status -->
-    <div id="snoozeStatus" class="snooze-status hidden">
+    <div id="snoozeStatus" class="snooze-status hidden" aria-live="polite">
         <div class="snooze-info">
             <span class="snooze-icon">⏰</span>
             <span class="snooze-text">Notifications snoozed</span>
@@ -130,7 +130,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Add New Endpoint</h3>
-                <button id="closeModal" class="close-btn">&times;</button>
+                <button id="closeModal" class="close-btn" aria-label="Close">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">

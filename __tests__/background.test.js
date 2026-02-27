@@ -24,12 +24,14 @@ describe('Background Service Worker - High Priority Functions', () => {
       }
     };
 
-    // Mock chrome.storage.local.get
+    let sessionStorage = {};
+
+    // Mock chrome.storage.local
     chrome.storage.local.get.mockImplementation((keys, callback) => {
       const result = {};
       if (Array.isArray(keys)) {
         keys.forEach(key => {
-          if (mockStorage[key]) result[key] = mockStorage[key];
+          if (mockStorage[key] !== undefined) result[key] = mockStorage[key];
         });
       }
       callback(result);
@@ -37,6 +39,28 @@ describe('Background Service Worker - High Priority Functions', () => {
 
     chrome.storage.local.set.mockImplementation((data, callback) => {
       Object.assign(mockStorage, data);
+      if (callback) callback();
+    });
+
+    chrome.storage.local.remove.mockImplementation((keys, callback) => {
+      const toRemove = Array.isArray(keys) ? keys : [keys];
+      toRemove.forEach(key => delete mockStorage[key]);
+      if (callback) callback();
+    });
+
+    // Mock chrome.storage.session (in-memory, simulates real session storage)
+    chrome.storage.session.get.mockImplementation((keys, callback) => {
+      const result = {};
+      if (Array.isArray(keys)) {
+        keys.forEach(key => {
+          if (sessionStorage[key] !== undefined) result[key] = sessionStorage[key];
+        });
+      }
+      callback(result);
+    });
+
+    chrome.storage.session.set.mockImplementation((data, callback) => {
+      Object.assign(sessionStorage, data);
       if (callback) callback();
     });
 
@@ -191,27 +215,24 @@ describe('Background Service Worker - High Priority Functions', () => {
   describe('Snooze State Management', () => {
     test('should block notifications when snooze is active', async () => {
       await Background.setSnooze(60);
-      const shouldNotify = !Background.isSnoozed();
+      const shouldNotify = !(await Background.isSnoozed());
 
       expect(shouldNotify).toBe(false);
     });
 
-    test('should allow notifications when snooze has expired', async () => {
-      await Background.setSnooze(-1); // Expired immediately if we could, but let's mock the time
-
-      // Since it's internal state, we already have Background loaded.
-      // We can use clearSnooze to simulate expiration or just call it.
+    test('should allow notifications when snooze is cleared', async () => {
+      await Background.setSnooze(60);
       await Background.clearSnooze();
-      const shouldNotify = !Background.isSnoozed();
+      const shouldNotify = !(await Background.isSnoozed());
 
       expect(shouldNotify).toBe(true);
     });
 
-    test('should clear snooze when time is reached', async () => {
+    test('should clear snooze when clearSnooze is called', async () => {
       await Background.setSnooze(60);
       await Background.clearSnooze();
 
-      expect(Background.isSnoozed()).toBe(false);
+      expect(await Background.isSnoozed()).toBe(false);
     });
   });
 
