@@ -1,4 +1,6 @@
 import { validateEndpointUrl, validateEndpointName, validateEndpoint, checkForDuplicates } from '../utils/validators.js';
+import * as Popup from '../popup.js';
+
 
 describe('Popup UI - Phase 2', () => {
   let mockStorage;
@@ -259,12 +261,12 @@ describe('Popup UI - Phase 2', () => {
         try {
           const parsed = new URL(url);
           const hostnameParts = parsed.hostname.split('.');
-          const isValidZendeskDomain = 
+          const isValidZendeskDomain =
             hostnameParts.length >= 3 &&
             hostnameParts[hostnameParts.length - 2] === 'zendesk' &&
             hostnameParts[hostnameParts.length - 1] === 'com' &&
             hostnameParts[0].length > 0;
-          
+
           return parsed.protocol === 'https:' && isValidZendeskDomain;
         } catch {
           return false;

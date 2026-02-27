@@ -99,7 +99,7 @@ function hideSnoozeModal() {
 }
 
 // Handle confirm snooze
-async function handleConfirmSnooze() {
+export async function handleConfirmSnooze() {
     const duration = parseInt(document.getElementById('snoozeDuration').value);
     try {
         showLoading('Snoozing notifications...');
@@ -124,7 +124,7 @@ async function handleConfirmSnooze() {
 }
 
 // Handle cancel snooze
-async function handleCancelSnooze() {
+export async function handleCancelSnooze() {
     try {
         showLoading('Canceling snooze...');
         const response = await chrome.runtime.sendMessage({
@@ -146,7 +146,7 @@ async function handleCancelSnooze() {
 }
 
 // Update snooze status display
-async function updateSnoozeStatus() {
+export async function updateSnoozeStatus() {
     try {
         const response = await chrome.runtime.sendMessage({
             action: 'getSnoozeStatus'
@@ -262,7 +262,7 @@ async function handleRefreshNow() {
 }
 
 // Load and display current settings
-async function loadSettings() {
+export async function loadSettings() {
     try {
         const { settings } = await chrome.storage.local.get(['settings']);
 
@@ -291,7 +291,7 @@ async function loadSettings() {
 }
 
 // Save settings to storage
-async function saveSettings() {
+export async function saveSettings() {
     try {
         const settings = {
             soundEnabled: document.getElementById('soundEnabled').checked,
@@ -326,7 +326,7 @@ async function saveSettings() {
 }
 
 // Load and display endpoints
-async function loadEndpoints() {
+export async function loadEndpoints() {
     try {
         const { endpoints } = await chrome.storage.local.get(['endpoints']);
         const endpointsList = document.getElementById('endpointsList');
@@ -538,7 +538,7 @@ async function handleSaveEndpoint() {
 }
 
 // Test endpoint connection
-async function testEndpoint(url) {
+export async function testEndpoint(url) {
     try {
         const urlObj = new URL(url);
         const domain = urlObj.hostname;

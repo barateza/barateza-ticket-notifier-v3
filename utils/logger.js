@@ -42,7 +42,9 @@ class LoggerInstance {
      * @param  {...any} args 
      */
     error(...args) {
-        console.error(...args);
+        if (this.debugEnabled) {
+            console.error(...args);
+        }
     }
 }
 

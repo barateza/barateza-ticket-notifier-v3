@@ -6,7 +6,7 @@ chrome.runtime.onMessage.addListener(msg => {
 });
 
 // Play audio with access to DOM APIs
-function playAudio({ type, volume = 0.3 }) {
+export function playAudio({ type, volume = 0.3 }) {
     if (type === 'beep') {
         // Create the same beep sound using AudioContext
         const audioContext = new AudioContext();

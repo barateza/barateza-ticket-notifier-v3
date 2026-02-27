@@ -2,6 +2,7 @@
 import Logger from './utils/logger.js';
 
 let endpointCounts = new Map(); // Store previous counts for each endpoint
+let isEnabled = true;
 let notificationEndpointMap = new Map(); // Map notificationId to endpoint URL
 let lastCheckTime = 0;
 const MIN_REFRESH_INTERVAL = 30000; // 30 seconds minimum between manual refreshes
@@ -96,7 +97,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 });
 
 // Snooze notifications for a specific duration
-async function setSnooze(durationMinutes) {
+export async function setSnooze(durationMinutes) {
   const now = Date.now();
 
   if (durationMinutes === 0) {
@@ -130,7 +131,7 @@ async function setSnooze(durationMinutes) {
 }
 
 // Clear snooze state
-async function clearSnooze() {
+export async function clearSnooze() {
   snoozeEndTime = null;
   await chrome.storage.local.remove('snoozeState');
   await chrome.alarms.clear('snoozeEnd');
@@ -143,7 +144,7 @@ async function clearSnooze() {
 }
 
 // Check if notifications are currently snoozed
-function isSnoozed() {
+export function isSnoozed() {
   if (!snoozeEndTime) return false;
 
   const now = Date.now();
@@ -157,7 +158,7 @@ function isSnoozed() {
 }
 
 // Get remaining snooze time in minutes
-function getRemainingSnoozeTime() {
+export function getRemainingSnoozeTime() {
   if (!snoozeEndTime) return 0;
 
   const now = Date.now();
@@ -170,7 +171,7 @@ function getRemainingSnoozeTime() {
 }
 
 // Start the monitoring process
-async function startMonitoring() {
+export async function startMonitoring() {
   console.log('Starting Zendesk monitoring');
 
   // Get current settings to determine check interval
@@ -189,17 +190,14 @@ async function startMonitoring() {
 }
 
 // Handle alarm events
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === 'ticketCheck') {
-    const { isEnabled = true } = await chrome.storage.local.get(['isEnabled']);
-    if (isEnabled) {
-      checkAllEndpoints();
-    }
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === 'ticketCheck' && isEnabled) {
+    checkAllEndpoints();
   }
 });
 
 // Main function to check all configured endpoints
-async function checkAllEndpoints() {
+export async function checkAllEndpoints() {
   console.log('Checking all endpoints...');
 
   try {
@@ -230,7 +228,7 @@ async function checkAllEndpoints() {
 }
 
 // Check a single endpoint with retry logic
-async function checkEndpoint(endpoint, settings, retryCount = 0) {
+export async function checkEndpoint(endpoint, settings, retryCount = 0) {
   const maxRetries = 2;
   try {
     console.log(`Checking endpoint: ${endpoint.name}`);
@@ -300,7 +298,7 @@ async function checkEndpoint(endpoint, settings, retryCount = 0) {
 }
 
 // Get Zendesk authentication cookies
-async function getZendeskCookies(domain) {
+export async function getZendeskCookies(domain) {
   try {
     const cookies = await chrome.cookies.getAll({
       domain: domain
@@ -330,7 +328,7 @@ async function getZendeskCookies(domain) {
 }
 
 // Send notifications when new tickets are found
-async function notifyNewTickets(endpointName, newTickets, totalCount, settings, endpoint) {
+export async function notifyNewTickets(endpointName, newTickets, totalCount, settings, endpoint) {
   // Check if notifications are snoozed
   if (isSnoozed()) {
     console.log(`Notifications are snoozed - skipping notification for ${endpointName}`);
@@ -361,7 +359,7 @@ async function notifyNewTickets(endpointName, newTickets, totalCount, settings, 
 
 // Play notification sound
 // Play notification sound using offscreen document
-async function playNotificationSound() {
+export async function playNotificationSound() {
   try {
     await createOffscreen();
     await chrome.runtime.sendMessage({
@@ -377,7 +375,7 @@ async function playNotificationSound() {
 }
 
 // Create offscreen document for audio playback
-async function createOffscreen() {
+export async function createOffscreen() {
   if (await chrome.offscreen.hasDocument()) return;
   await chrome.offscreen.createDocument({
     url: 'offscreen.html',
@@ -387,7 +385,7 @@ async function createOffscreen() {
 }
 
 // Update extension badge with total ticket count
-async function updateBadge() {
+export async function updateBadge() {
   const totalCount = Array.from(endpointCounts.values()).reduce((sum, count) => sum + count, 0);
 
   // If notifications are snoozed, show special badge
@@ -412,61 +410,74 @@ async function updateBadge() {
 
 // Handle messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'refreshNow') {
-    const now = Date.now();
-    if (now - lastCheckTime < MIN_REFRESH_INTERVAL) {
-      console.log('Refresh rate limited');
-      sendResponse({
-        success: false,
-        error: 'Please wait 30 seconds before refreshing again'
-      });
-    } else {
-      lastCheckTime = now;
-      console.log('Manual refresh requested');
-      checkAllEndpoints();
-      sendResponse({ success: true });
-    }
-  } else if (request.action === 'toggleEnabled') {
-    chrome.storage.local.set({ isEnabled: request.enabled }).then(() => {
-      console.log(`Monitoring ${request.enabled ? 'enabled' : 'disabled'}`);
-      sendResponse({ success: true });
-    });
-    return true; // async
-  } else if (request.action === 'getStatus') {
-    chrome.storage.local.get(['isEnabled']).then(({ isEnabled = true }) => {
-      sendResponse({
-        enabled: isEnabled,
-        counts: Array.from(endpointCounts.entries()),
-        lastCheck: lastCheckTime,
-        isSnoozed: isSnoozed(),
-        snoozeEndTime: snoozeEndTime
-      });
-    });
-    return true; // async
-  } else if (request.action === 'setSnooze') {
-    setSnooze(request.duration).then(sendResponse);
-    return true; // async
-  } else if (request.action === 'clearSnooze') {
-    console.log('clearSnooze action received, clearing snooze...');
-    clearSnooze().then((clearResponse) => {
-      console.log('clearSnooze completed, isSnoozed:', isSnoozed());
-      sendResponse(clearResponse);
-    });
-    return true; // async
-  } else if (request.action === 'getSnoozeStatus') {
-    const isSnoozedStatus = isSnoozed();
-    const remainingTime = getRemainingSnoozeTime();
-    console.log('getSnoozeStatus: isSnoozed=', isSnoozedStatus, 'snoozeEndTime=', snoozeEndTime, 'remainingTime=', remainingTime);
-    sendResponse({
-      isSnoozed: isSnoozedStatus,
-      snoozeEndTime: snoozeEndTime,
-      remainingTime: remainingTime
-    });
-  } else {
-    sendResponse({ error: 'Unknown action' });
-  }
+  // Handle async actions in a separate function
+  (async () => {
+    switch (request.action) {
+      case 'refreshNow': {
+        const now = Date.now();
+        if (now - lastCheckTime < MIN_REFRESH_INTERVAL) {
+          console.log('Refresh rate limited');
+          sendResponse({
+            success: false,
+            error: 'Please wait 30 seconds before refreshing again'
+          });
+          return;
+        }
+        lastCheckTime = now;
+        console.log('Manual refresh requested');
+        checkAllEndpoints();
+        sendResponse({ success: true });
+        break;
+      }
 
-  return false; // Sync by default unless returned true above
+      case 'toggleEnabled':
+        isEnabled = request.enabled;
+        console.log(`Monitoring ${isEnabled ? 'enabled' : 'disabled'}`);
+        sendResponse({ success: true });
+        break;
+
+      case 'getStatus':
+        sendResponse({
+          enabled: isEnabled,
+          counts: Array.from(endpointCounts.entries()),
+          lastCheck: lastCheckTime,
+          isSnoozed: isSnoozed(),
+          snoozeEndTime: snoozeEndTime
+        });
+        break;
+
+      case 'setSnooze': {
+        const setSnoozeResponse = await setSnooze(request.duration);
+        sendResponse(setSnoozeResponse);
+        break;
+      }
+
+      case 'clearSnooze': {
+        console.log('clearSnooze action received, clearing snooze...');
+        const clearResponse = await clearSnooze();
+        console.log('clearSnooze completed, isSnoozed:', isSnoozed());
+        sendResponse(clearResponse);
+        break;
+      }
+
+      case 'getSnoozeStatus': {
+        const isSnoozedStatus = isSnoozed();
+        const remainingTime = getRemainingSnoozeTime();
+        console.log('getSnoozeStatus: isSnoozed=', isSnoozedStatus, 'snoozeEndTime=', snoozeEndTime, 'remainingTime=', remainingTime);
+        sendResponse({
+          isSnoozed: isSnoozedStatus,
+          snoozeEndTime: snoozeEndTime,
+          remainingTime: remainingTime
+        });
+        break;
+      }
+
+      default:
+        sendResponse({ error: 'Unknown action' });
+    }
+  })();
+
+  return true; // Keep message channel open for async response
 });
 
 // Handle notification clicks

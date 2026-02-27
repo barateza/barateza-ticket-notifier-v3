@@ -1,4 +1,6 @@
 import { validateEndpointUrl, validateEndpointName, validateEndpoint, checkForDuplicates } from '../utils/validators.js';
+import * as Background from '../background.js';
+
 
 describe('Integration Tests - Phase 3', () => {
   let mockStorage;
@@ -164,7 +166,7 @@ describe('Integration Tests - Phase 3', () => {
       });
 
       try {
-        chrome.storage.local.get(['endpoints'], () => {});
+        chrome.storage.local.get(['endpoints'], () => { });
       } catch (error) {
         expect(error.message).toBe('Storage read failed');
       }
