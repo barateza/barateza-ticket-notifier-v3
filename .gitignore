@@ -40,3 +40,4 @@ yarn-error.log*
 ehthumbs.db
 /.agent
 /.agents
+/.specs
