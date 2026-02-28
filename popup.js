@@ -28,6 +28,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Start snooze timer to update remaining time display
     startSnoozeTimer();
+
+    // Set app version from manifest
+    try {
+        const manifest = chrome.runtime.getManifest();
+        if (manifest && manifest.version) {
+            document.getElementById('appVersion').textContent = `v${manifest.version}`;
+        }
+    } catch (e) {
+        Logger.error('Failed to get manifest version', e);
+    }
 });
 
 // Set up all event listeners

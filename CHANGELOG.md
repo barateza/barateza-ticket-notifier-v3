@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.1] - 2026-02-27
+
+### Fixed
+- **Dark Mode Accessibility**: Fixed contrast ratios across all buttons and UI elements to meet WCAG AA standards.
+- **Dark Mode Coverage**: Added missing dark mode styles for dropdowns, outline buttons, and modals.
+- **Dynamic Version Footer**: Replaced hardcoded version number in popup with dynamic manifest version retrieval.
+- **Offscreen Module Fix**: Resolved script loading errors in the offscreen document by enabling module script type.
+
 ## [3.2.0] - 2026-02-27
 
 ### Added

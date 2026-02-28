@@ -12,7 +12,7 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: 14px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #333;
+    color: #1a202c;
 }
 
 .header {
@@ -60,9 +60,17 @@ body {
 }
 
 @keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 1;
+    }
 }
 
 .controls {
@@ -100,42 +108,42 @@ body {
 }
 
 .btn-primary {
-    background: #3498db;
+    background: #2563eb;
     color: white;
 }
 
 .btn-primary:hover {
-    background: #2980b9;
+    background: #1d4ed8;
     transform: translateY(-1px);
 }
 
 .btn-secondary {
-    background: #95a5a6;
+    background: #4b5563;
     color: white;
 }
 
 .btn-secondary:hover {
-    background: #7f8c8d;
+    background: #374151;
 }
 
 .btn-outline {
     background: transparent;
-    color: #3498db;
-    border: 2px solid #3498db;
+    color: #2563eb;
+    border: 2px solid #2563eb;
 }
 
 .btn-outline:hover {
-    background: #3498db;
+    background: #2563eb;
     color: white;
 }
 
 .btn-danger {
-    background: #e74c3c;
+    background: #dc2626;
     color: white;
 }
 
 .btn-danger:hover {
-    background: #c0392b;
+    background: #b91c1c;
 }
 
 .btn-icon {
@@ -162,10 +170,11 @@ body {
 
 .setting select {
     padding: 6px 10px;
-    border: 1px solid #bdc3c7;
+    border: 1px solid #cbd5e1;
     border-radius: 4px;
     font-size: 13px;
     background: white;
+    color: #1e293b;
     margin-left: 8px;
 }
 
@@ -392,8 +401,13 @@ body {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 /* Disabled button styles */
@@ -411,21 +425,21 @@ body {
 
 /* Test button styles */
 .btn-test {
-    background: #f39c12;
+    background: #92400e;
     color: white;
 }
 
 .btn-test:hover {
-    background: #e67e22;
+    background: #78350f;
 }
 
 .btn-warning {
-    background: #f39c12;
+    background: #92400e;
     color: white;
 }
 
 .btn-warning:hover {
-    background: #e67e22;
+    background: #78350f;
 }
 
 .btn-small {
@@ -472,7 +486,7 @@ body {
 }
 
 .dark-mode .snooze-text {
-    color: #f39c12;
+    color: #fbbf24;
 }
 
 .snooze-remaining {
@@ -481,13 +495,13 @@ body {
 }
 
 .dark-mode .snooze-remaining {
-    color: #7f8c8d;
+    color: #cbd5e1;
 }
 
 /* Dark mode styles */
 body.dark-mode {
-    background: linear-gradient(135deg, #1e272e 0%, #3742fa 100%);
-    color: #ecf0f1;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #f8fafc;
 }
 
 body.dark-mode .header,
@@ -498,7 +512,8 @@ body.dark-mode .footer {
     border-color: #475569;
 }
 
-body.dark-mode .header h1 {
+body.dark-mode .header h1,
+body.dark-mode .section h3 {
     color: #f1f5f9;
 }
 
@@ -523,6 +538,14 @@ body.dark-mode .endpoint-url {
     color: #94a3b8;
 }
 
+body.dark-mode .endpoint-status.active {
+    color: #4ade80;
+}
+
+body.dark-mode .endpoint-status.inactive {
+    color: #f87171;
+}
+
 body.dark-mode .modal-content {
     background: #1e293b;
     color: #f1f5f9;
@@ -541,7 +564,8 @@ body.dark-mode .form-group label {
 }
 
 body.dark-mode .form-group input,
-body.dark-mode .form-group textarea {
+body.dark-mode .form-group textarea,
+body.dark-mode .form-group select {
     background: #334155;
     border-color: #475569;
     color: #f1f5f9;
@@ -575,31 +599,55 @@ body.dark-mode .warning {
     color: #fed7aa;
 }
 
+body.dark-mode .setting select {
+    background: #334155;
+    border-color: #475569;
+    color: #f1f5f9;
+}
+
+body.dark-mode .btn-outline {
+    color: #60a5fa;
+    border-color: #60a5fa;
+}
+
+body.dark-mode .btn-outline:hover {
+    background: #60a5fa;
+    color: #0f172a;
+}
+
+body.dark-mode .close-btn {
+    color: #94a3b8;
+}
+
+body.dark-mode .close-btn:hover {
+    color: #f87171;
+}
+
 /* Responsive improvements */
 @media (max-width: 420px) {
     body {
         width: 360px;
         min-height: 450px;
     }
-    
+
     .header h1 {
         font-size: 16px;
     }
-    
+
     .controls {
         flex-direction: column;
     }
-    
+
     .controls .btn {
         width: 100%;
         justify-content: center;
     }
-    
+
     .endpoint-item {
         flex-direction: column;
         align-items: flex-start;
     }
-    
+
     .endpoint-actions {
         margin-top: 8px;
         width: 100%;
