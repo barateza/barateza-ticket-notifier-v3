@@ -5,11 +5,11 @@
 
 # Dependencies
 node_modules/
-package-lock.json
 
 # Build & Distribution
 dist/
 barateza-ticket-notifier.zip
+*.zip
 
 # Testing
 coverage/
@@ -17,6 +17,9 @@ coverage/
 .nyc_output/
 __tests__/node_modules/
 .jest
+
+# Linting
+.eslintcache
 
 # Logs
 *.log
@@ -38,6 +41,9 @@ yarn-error.log*
 .Spotlight-V100
 .Trashes
 ehthumbs.db
+
+# AI / Agents / Specs
 /.agent
 /.agents
+/.gemini
 /.specs
