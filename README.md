@@ -5,7 +5,7 @@ A Chrome extension that monitors Zendesk ticket endpoints and notifies you with 
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![Latest Release](https://img.shields.io/github/v/release/barateza/barateza-ticket-notifier-v3?style=flat-square)](https://github.com/barateza/barateza-ticket-notifier-v3/releases/latest)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-blue?style=flat-square)
-[![Tests Passing](https://img.shields.io/badge/tests-68%20passing-brightgreen?style=flat-square&logo=jest)](https://github.com/barateza/barateza-ticket-notifier-v3/tree/main/__tests__)
+[![Tests Passing](https://img.shields.io/badge/tests-92%20passing-brightgreen?style=flat-square&logo=jest)](https://github.com/barateza/barateza-ticket-notifier-v3/tree/main/__tests__)
 [![Code Coverage](https://github.com/barateza/barateza-ticket-notifier-v3/actions/workflows/coverage.yml/badge.svg)](https://github.com/barateza/barateza-ticket-notifier-v3/actions/workflows/coverage.yml)
 [![CodeQL](https://github.com/barateza/barateza-ticket-notifier-v3/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/barateza/barateza-ticket-notifier-v3/actions/workflows/github-code-scanning/codeql)
 [![Dependabot](https://img.shields.io/badge/dependabot-enabled-brightgreen?style=flat-square&logo=dependabot)](https://github.com/barateza/barateza-ticket-notifier-v3/security/dependabot)
@@ -18,7 +18,7 @@ A Chrome extension that monitors Zendesk ticket endpoints and notifies you with 
 
 ### Download & Install (2 minutes)
 
-1. **[Download v3.1.1](https://github.com/barateza/barateza-ticket-notifier-v3/archive/refs/tags/v3.1.1.zip)** - Extract the ZIP file to your computer
+1. **[Download v3.2.1](https://github.com/barateza/barateza-ticket-notifier-v3/archive/refs/tags/v3.2.1.zip)** - Extract the ZIP file to your computer
 2. **Open Chrome** and go to `chrome://extensions/`
 3. **Enable "Developer mode"** (toggle in the top right)
 4. **Click "Load unpacked"** and select the extracted folder
@@ -35,10 +35,12 @@ A Chrome extension that monitors Zendesk ticket endpoints and notifies you with 
 - ⚙️ **Multiple Endpoints** - Monitor multiple Zendesk search queries simultaneously
 - ⏱️ **Configurable Intervals** - Check every 1-15 minutes (minimum 60 seconds)
 - 🔄 **Manual Refresh** - Force refresh all endpoints instantly
-- � **Snooze Notifications** - Pause notifications for a configurable duration (or indefinitely)
-- �📊 **Live Badge Counter** - Shows total ticket count on extension icon
+- 🌙 **Dark Mode Support** - Sleek dark theme optimized for low-light environments
+- ⏸️ **Snooze Notifications** - Pause notifications for a configurable duration (or indefinitely)
+- 📊 **Live Badge Counter** - Shows total ticket count on extension icon
+- 🛠️ **Persistent State** - Maintains monitoring state across service worker restarts
+- 📝 **Logger Utility** - Centralized logging with configurable debug mode
 - 🎛️ **Easy Management** - Simple popup interface for adding/removing endpoints
-
 ## Installation
 
 ### Method 1: Load Unpacked Extension (Development)
@@ -242,6 +244,20 @@ Feel free to submit issues, feature requests, or pull requests to improve this e
 This project is provided as-is for educational and development purposes.
 
 ## Changelog
+
+### Version 3.2.1
+
+- 🎨 **Dark Mode**: Fixed contrast ratios and accessibility for dark theme (WCAG AA)
+- 🔧 **Offscreen Fix**: Resolved "Unexpected token 'export'" error in offscreen document
+- 📱 **Dynamic UI**: Version number in popup now automatically retrieves from manifest
+- ✅ **Tests**: Expanded test suite to 92 passing tests
+
+### Version 3.2.0
+
+- 🔄 **Session Persistence**: State now survives service worker termination via `chrome.storage.session`
+- 📋 **Privacy Policy**: Added official privacy documentation for store compliance
+- 🛠️ **Diagnostics**: New Logger utility and user-configurable Debug Mode
+- 🚀 **Automation**: Added release packaging script for consistent deployments
 
 ### Version 3.1.1
 
