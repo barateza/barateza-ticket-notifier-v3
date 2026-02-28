@@ -14,13 +14,13 @@ describe('Integration Tests - Phase 3', () => {
         {
           id: 1,
           name: 'AMER - New Tickets',
-          url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+status:new',
+          url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+group:amer+status:new',
           enabled: true
         },
         {
           id: 2,
           name: 'EMEA - Open',
-          url: 'https://other.zendesk.com/api/v2/search.json?query=type:ticket+status:open',
+          url: 'https://other.zendesk.com/api/v2/search.json?query=type:ticket+group:emea+status:open',
           enabled: true
         }
       ],
