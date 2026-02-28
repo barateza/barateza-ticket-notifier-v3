@@ -33,8 +33,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const manifest = chrome.runtime.getManifest();
         if (manifest && manifest.version) {
-            document.getElementById('appVersion').textContent = `v${manifest.version}`;
+            const appVersionEl = document.getElementById('appVersion');
+            appVersionEl.textContent = `v${manifest.version}`;
         }
+
+        // Check for updates
+        checkForUpdates();
     } catch (e) {
         Logger.error('Failed to get manifest version', e);
     }
@@ -609,6 +613,53 @@ function updateLastCheckTime() {
     const lastCheckElement = document.getElementById('lastCheck');
     const now = new Date();
     lastCheckElement.textContent = `Last check: ${now.toLocaleTimeString()}`;
+}
+
+/**
+ * Check for updates on GitHub
+ */
+async function checkForUpdates() {
+    try {
+        const manifest = chrome.runtime.getManifest();
+        const currentVersion = manifest.version;
+
+        const response = await fetch('https://api.github.com/repos/barateza/barateza-ticket-notifier-v3/releases/latest');
+        if (!response.ok) {
+            throw new Error(`GitHub API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const latestVersion = data.tag_name.replace(/^v/, '');
+
+        if (isNewerVersion(currentVersion, latestVersion)) {
+            const updateStatus = document.getElementById('updateStatus');
+            updateStatus.textContent = `Update available: v${latestVersion}`;
+            updateStatus.classList.remove('hidden');
+            updateStatus.title = `Update available: v${latestVersion}. Click to open releases page.`;
+            updateStatus.onclick = () => {
+                chrome.tabs.create({ url: 'https://github.com/barateza/barateza-ticket-notifier-v3/releases/latest' });
+            };
+        }
+    } catch (error) {
+        Logger.error('Failed to check for updates:', error);
+    }
+}
+
+/**
+ * Compare two semver strings
+ * @returns {boolean} True if latest is newer than current
+ */
+function isNewerVersion(current, latest) {
+    const v1 = current.split('.').map(Number);
+    const v2 = latest.split('.').map(Number);
+
+    for (let i = 0; i < 3; i++) {
+        const n1 = v1[i] || 0;
+        const n2 = v2[i] || 0;
+        if (n2 > n1) return true;
+        if (n1 > n2) return false;
+    }
+    return false;
 }
 
 // Utility functions

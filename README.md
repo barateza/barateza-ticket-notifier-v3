@@ -18,7 +18,7 @@ A Chrome extension that monitors Zendesk ticket endpoints and notifies you with 
 
 ### Download & Install (2 minutes)
 
-1. **[Download v3.2.1](https://github.com/barateza/barateza-ticket-notifier-v3/releases/download/v3.2.1/barateza-ticket-notifier-v3.2.1.zip)** - Extract the ZIP file to your computer
+1. **[Download v3.2.2](https://github.com/barateza/barateza-ticket-notifier-v3/releases/download/v3.2.2/barateza-ticket-notifier-v3.2.2.zip)** - Extract the ZIP file to your computer
 2. **Open Chrome** and go to `chrome://extensions/`
 3. **Enable "Developer mode"** (toggle in the top right)
 4. **Click "Load unpacked"** and select the extracted folder
@@ -245,7 +245,7 @@ This project is provided as-is for educational and development purposes.
 
 ## Changelog
 
-### Version 3.2.1
+### Version 3.2.2
 
 - 🎨 **Dark Mode**: Fixed contrast ratios and accessibility for dark theme (WCAG AA)
 - 🔧 **Offscreen Fix**: Resolved "Unexpected token 'export'" error in offscreen document

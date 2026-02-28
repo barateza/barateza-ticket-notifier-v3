@@ -687,4 +687,43 @@ body.dark-mode .close-btn:hover {
     .btn {
         transition: none;
     }
+
+    /* Update notification styles */
+    .version-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        color: #7f8c8d;
+    }
+
+    .update-status {
+        background-color: #27ae60;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+
+    .update-status:hover {
+        background-color: #2ecc71;
+        transform: scale(1.05);
+    }
+
+    .update-status.hidden {
+        display: none;
+    }
+
+    .dark-mode .update-status {
+        background-color: #2ecc71;
+        color: #0f172a;
+    }
+
+    .dark-mode .update-status:hover {
+        background-color: #4ade80;
+    }
 }
