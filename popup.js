@@ -3,6 +3,13 @@
 
 import { validateEndpointUrl, validateEndpoint } from './utils/validators.js';
 import Logger from './utils/logger.js';
+import {
+    exportEndpoints,
+    parseImportFile,
+    validateImportedEndpoints,
+    prepareEndpointsForImport,
+    MAX_IMPORT_SIZE_BYTES
+} from './utils/endpoint-io.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     Logger.info('Popup loaded');
@@ -64,6 +71,9 @@ function setupEventListeners() {
     document.getElementById('cancelEndpoint').addEventListener('click', hideAddEndpointModal);
     document.getElementById('saveEndpoint').addEventListener('click', handleSaveEndpoint);
     document.getElementById('testEndpoint').addEventListener('click', handleTestEndpoint);
+    document.getElementById('exportEndpointsBtn').addEventListener('click', handleExportEndpoints);
+    document.getElementById('importEndpointsBtn').addEventListener('click', handleImportEndpoints);
+    document.getElementById('importFileInput').addEventListener('change', handleImportFileSelected);
 
     // Snooze management
     document.getElementById('closeSnoozeModal').addEventListener('click', hideSnoozeModal);
@@ -368,25 +378,10 @@ function createEndpointElement(endpoint, index) {
     const div = document.createElement('div');
     div.className = 'endpoint-item';
 
-    // Safely truncate URL by finding a safe boundary that doesn't cut URL-encoded characters
-    let truncatedUrl = endpoint.url;
-    if (endpoint.url.length > 60) {
-        // Find safe truncation point that doesn't split % encoding
-        let truncPoint = 60;
-        // Check if we're in the middle of %XX encoding
-        if (endpoint.url[truncPoint - 1] === '%' ||
-            (endpoint.url[truncPoint - 2] === '%' && /[0-9A-Fa-f]/.test(endpoint.url[truncPoint - 1]))) {
-            // Back up to before the % sign
-            truncPoint = endpoint.url.lastIndexOf('%', truncPoint - 1);
-            if (truncPoint < 10) truncPoint = 60; // Fallback if % not found
-        }
-        truncatedUrl = endpoint.url.substring(0, truncPoint) + '...';
-    }
-
     div.innerHTML = `
         <div class="endpoint-info">
             <div class="endpoint-name">${escapeHtml(endpoint.name)}</div>
-            <div class="endpoint-url">${escapeHtml(truncatedUrl)}</div>
+            <div class="endpoint-url">${escapeHtml(endpoint.url)}</div>
             <div class="endpoint-status ${endpoint.enabled ? 'active' : 'inactive'}">
                 ${endpoint.enabled ? '● Active' : '○ Inactive'}
             </div>
@@ -687,6 +682,115 @@ async function saveEndpoints(endpoints) {
         Logger.error('Failed to save endpoints:', error);
         showError('Failed to save endpoints. Please try again.');
         return false;
+    }
+}
+
+// ─── Import / Export ──────────────────────────────────────────────────────────
+
+// Export all endpoints to a downloadable JSON file.
+export async function handleExportEndpoints() {
+    try {
+        const { endpoints } = await chrome.storage.local.get(['endpoints']);
+
+        if (!endpoints || endpoints.length === 0) {
+            showError('No endpoints to export.');
+            return;
+        }
+
+        const manifest = chrome.runtime.getManifest();
+        const json = exportEndpoints(endpoints, manifest.version);
+
+        // Generate a dated filename
+        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+        const filename = `zendesk-endpoints-${today}.json`;
+
+        // Trigger download via Blob + temporary <a>
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = filename;
+        anchor.click();
+        URL.revokeObjectURL(url);
+
+        Logger.info(`Exported ${endpoints.length} endpoint(s) to ${filename}`);
+        showSuccess(`Exported ${endpoints.length} endpoint(s)`);
+    } catch (error) {
+        Logger.error('Error exporting endpoints:', error);
+        showError('Failed to export endpoints.');
+    }
+}
+
+// Trigger the file picker for import.
+export function handleImportEndpoints() {
+    document.getElementById('importFileInput').click();
+}
+
+// Handle file selected from the file picker.
+export async function handleImportFileSelected(event) {
+    const file = event.target.files[0];
+
+    // Reset the input so re-selecting the same file fires again
+    event.target.value = '';
+
+    if (!file) {
+        return; // User cancelled the picker
+    }
+
+    // Guard: file size
+    if (file.size > MAX_IMPORT_SIZE_BYTES) {
+        showError('File is too large. Maximum size is 1 MB.');
+        return;
+    }
+
+    try {
+        showLoading('Importing endpoints...');
+
+        const fileContent = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = () => reject(new Error('Failed to read file'));
+            reader.readAsText(file);
+        });
+
+        // Parse and structurally validate
+        const parsed = parseImportFile(fileContent);
+        if (!parsed.success) {
+            showError(parsed.error);
+            return;
+        }
+
+        // Validate individual endpoints against existing ones
+        const { endpoints: existingEndpoints = [] } = await chrome.storage.local.get(['endpoints']);
+        const { valid, skipped } = validateImportedEndpoints(
+            parsed.data.endpoints,
+            existingEndpoints
+        );
+
+        if (valid.length === 0) {
+            const msg = skipped.length > 0
+                ? 'All endpoints already exist. No new endpoints imported.'
+                : 'No valid endpoints found in file.';
+            showError(msg);
+            return;
+        }
+
+        // Assign runtime fields and persist
+        const prepared = prepareEndpointsForImport(valid);
+        const merged = [...existingEndpoints, ...prepared];
+        const saved = await saveEndpoints(merged);
+
+        if (saved) {
+            await loadEndpoints();
+            const skippedNote = skipped.length > 0 ? `, ${skipped.length} skipped as duplicate(s)` : '';
+            showSuccess(`Imported ${valid.length} endpoint(s)${skippedNote}`);
+            Logger.info(`Import complete: ${valid.length} added, ${skipped.length} skipped`);
+        }
+    } catch (error) {
+        Logger.error('Error importing endpoints:', error);
+        showError('Failed to import endpoints.');
+    } finally {
+        hideLoading();
     }
 }
 

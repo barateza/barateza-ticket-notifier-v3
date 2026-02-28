@@ -18,7 +18,7 @@ A Chrome extension that monitors Zendesk ticket endpoints and notifies you with 
 
 ### Download & Install (2 minutes)
 
-1. **[Download v3.2.3](https://github.com/barateza/barateza-ticket-notifier-v3/releases/download/v3.2.3/barateza-ticket-notifier-3.2.3.zip)** - Extract the ZIP file to your computer
+1. **[Download v3.3.0](https://github.com/barateza/barateza-ticket-notifier-v3/releases/download/v3.3.0/barateza-ticket-notifier-3.3.0.zip)** - Extract the ZIP file to your computer
 2. **Open Chrome** and go to `chrome://extensions/`
 3. **Enable "Developer mode"** (toggle in the top right)
 4. **Click "Load unpacked"** and select the extracted folder
@@ -33,6 +33,7 @@ A Chrome extension that monitors Zendesk ticket endpoints and notifies you with 
 - 🔔 **Sound & Visual Notifications** - Get alerted when new tickets arrive
 - 🍪 **Cookie Authentication** - Uses your existing Zendesk login, no API tokens needed
 - ⚙️ **Multiple Endpoints** - Monitor multiple Zendesk search queries simultaneously
+- 📥 **Import/Export** - Backup and restore your endpoint configurations via JSON
 - ⏱️ **Configurable Intervals** - Check every 1-15 minutes (minimum 60 seconds)
 - 🔄 **Manual Refresh** - Force refresh all endpoints instantly
 - 🌙 **Dark Mode Support** - Sleek dark theme optimized for low-light environments
@@ -89,6 +90,11 @@ https://your-domain.zendesk.com/api/v2/search.json?query=type:ticket+created>202
 ```
 
 **Important**: Replace `your-domain` with your actual Zendesk subdomain (e.g., `company.zendesk.com`).
+
+### Importing & Exporting
+You can backup or share your configured endpoints:
+1. Click the **Export** (📥) button to download your current endpoints as a `.json` file.
+2. Click the **Import** (📤) button to load endpoints from a previously exported `.json` file. The extension will automatically merge them and skip any duplicates.
 
 ### Settings
 
@@ -244,6 +250,11 @@ Feel free to submit issues, feature requests, or pull requests to improve this e
 This project is provided as-is for educational and development purposes.
 
 ## Changelog
+
+### Version 3.3.0
+
+- 📥 **Import/Export**: Added JSON Import/Export capability for endpoint configurations.
+- 🎨 **URL Display**: Endpoint URLs are now fully displayed with text wrapping instead of being truncated.
 
 ### Version 3.2.3
 

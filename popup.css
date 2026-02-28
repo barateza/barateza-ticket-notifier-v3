@@ -182,6 +182,46 @@ body {
     margin-bottom: 12px;
 }
 
+/* Section heading row with inline IO actions */
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.section-header h3 {
+    margin-bottom: 0;
+    /* override the default h3 bottom margin */
+}
+
+.endpoint-io-actions {
+    display: flex;
+    gap: 4px;
+}
+
+/* Ghost icon button — subtle, text-weight feel */
+.btn-ghost-icon {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    letter-spacing: 0.02em;
+}
+
+.btn-ghost-icon:hover {
+    background: #f1f5f9;
+    color: #2563eb;
+}
+
 .endpoint-item {
     background: #f8f9fa;
     border: 1px solid #e9ecef;
@@ -613,6 +653,15 @@ body.dark-mode .btn-outline {
 body.dark-mode .btn-outline:hover {
     background: #60a5fa;
     color: #0f172a;
+}
+
+body.dark-mode .btn-ghost-icon {
+    color: #94a3b8;
+}
+
+body.dark-mode .btn-ghost-icon:hover {
+    background: #1e293b;
+    color: #60a5fa;
 }
 
 body.dark-mode .close-btn {

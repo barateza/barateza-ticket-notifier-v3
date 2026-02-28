@@ -117,12 +117,24 @@
     </div>
 
     <div class="section">
-        <h3>Endpoints</h3>
+        <div class="section-header">
+            <h3>Endpoints</h3>
+            <div class="endpoint-io-actions">
+                <button id="exportEndpointsBtn" class="btn btn-ghost-icon" title="Export endpoints to JSON file">
+                    <span aria-hidden="true">📤</span> Export
+                </button>
+                <button id="importEndpointsBtn" class="btn btn-ghost-icon" title="Import endpoints from JSON file">
+                    <span aria-hidden="true">📥</span> Import
+                </button>
+            </div>
+        </div>
         <div id="endpointsList" class="endpoints-list"></div>
         <button id="addEndpointBtn" class="btn btn-outline">
             <span class="btn-icon">➕</span>
             Add Endpoint
         </button>
+        <!-- Hidden file input for importing endpoints (triggered programmatically) -->
+        <input type="file" id="importFileInput" accept=".json" hidden aria-hidden="true">
     </div>
 
     <!-- Add Endpoint Modal -->

@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [3.3.0] - 2026-02-28
+
+### Added
+- **Endpoint Import/Export**: Users can now export their endpoint configurations to a JSON file and import them back, allowing for easy backups and sharing. The import system intelligently merges new endpoints and skips duplicates.
+
+### Changed
+- **Endpoint Display**: Endpoint URLs are now fully displayed with text wrapping instead of being truncated at 60 characters, making it easier to see full query parameters at a glance.
+
 ## [3.2.3] - 2026-02-28
 
 ### Fixed
