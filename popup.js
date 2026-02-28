@@ -634,11 +634,15 @@ async function checkForUpdates() {
         if (isNewerVersion(currentVersion, latestVersion)) {
             const updateStatus = document.getElementById('updateStatus');
             updateStatus.textContent = `Update available: v${latestVersion}`;
+            updateStatus.href = 'https://github.com/barateza/barateza-ticket-notifier-v3/releases/latest';
             updateStatus.classList.remove('hidden');
             updateStatus.title = `Update available: v${latestVersion}. Click to open releases page.`;
-            updateStatus.onclick = () => {
-                chrome.tabs.create({ url: 'https://github.com/barateza/barateza-ticket-notifier-v3/releases/latest' });
-            };
+
+            // Add click listener to use chrome.tabs API for reliable new tab opening
+            updateStatus.addEventListener('click', (e) => {
+                e.preventDefault();
+                chrome.tabs.create({ url: updateStatus.href });
+            });
         }
     } catch (error) {
         Logger.error('Failed to check for updates:', error);
