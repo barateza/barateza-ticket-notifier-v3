@@ -103,9 +103,12 @@ describe('Background Service Worker - High Priority Functions', () => {
 
     test('should handle cookie retrieval errors gracefully', async () => {
       chrome.cookies.getAll.mockRejectedValue(new Error('Cookie access denied'));
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
 
       const result = await Background.getZendeskCookies('cpanel.zendesk.com');
       expect(result).toBe('');
+
+      consoleSpy.mockRestore();
     });
   });
 

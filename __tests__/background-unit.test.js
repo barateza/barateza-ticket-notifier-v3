@@ -78,6 +78,13 @@ describe('Background – Unit Tests', () => {
         chrome.cookies.getAll.mockResolvedValue([
             { name: 'session-id', value: 'sess123' }
         ]);
+
+        // Mock fetch to avoid "reading 'ok' of undefined" in startMonitoring's background checks
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            status: 200,
+            json: async () => ({ count: 5 })
+        });
     });
 
     // ─── Snooze Functions ───────────────────────────────────────────────────────
@@ -282,9 +289,12 @@ describe('Background – Unit Tests', () => {
 
         test('handles errors gracefully', async () => {
             chrome.offscreen.hasDocument.mockRejectedValue(new Error('Offscreen API unavailable'));
+            const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
 
             // Should not throw
             await expect(Background.playNotificationSound()).resolves.not.toThrow();
+
+            consoleSpy.mockRestore();
         });
     });
 
