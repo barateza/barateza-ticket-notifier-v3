@@ -14,40 +14,40 @@ export function validateEndpointUrl(url) {
     const urlObj = new URL(url);
     const hostname = urlObj.hostname;
     const hostnameParts = hostname.split('.');
-    
+
     // Validate hostname is a Zendesk subdomain
-    const isValidZendeskDomain = 
+    const isValidZendeskDomain =
       hostnameParts.length >= 3 &&
       hostnameParts[hostnameParts.length - 2] === 'zendesk' &&
       hostnameParts[hostnameParts.length - 1] === 'com' &&
       hostnameParts[0].length > 0;
-    
+
     if (!isValidZendeskDomain) {
-      return { 
-        valid: false, 
-        error: 'URL must be a Zendesk domain (*.zendesk.com)' 
+      return {
+        valid: false,
+        error: 'URL must be a Zendesk domain (*.zendesk.com)'
       };
     }
-    
+
     // Validate URL is an API endpoint
     const hasApiPath = urlObj.pathname.includes('/api/v2/search');
     if (!hasApiPath) {
-      return { 
-        valid: false, 
-        error: 'URL must be a Zendesk API endpoint' 
+      return {
+        valid: false,
+        error: 'URL must be a Zendesk API endpoint'
       };
     }
-    
+
     // Validate search query parameter exists
     if (!urlObj.searchParams.has('query')) {
-      return { 
-        valid: false, 
-        error: 'URL must include a search query parameter' 
+      return {
+        valid: false,
+        error: 'URL must include a search query parameter'
       };
     }
-    
+
     return { valid: true };
-  } catch (error) {
+  } catch (_error) {
     return { valid: false, error: 'Please enter a valid URL' };
   }
 }
@@ -64,9 +64,9 @@ export function validateEndpointName(name) {
 
   const trimmedName = name.trim();
   if (trimmedName.length > 50) {
-    return { 
-      valid: false, 
-      error: 'Endpoint name must be less than 50 characters' 
+    return {
+      valid: false,
+      error: 'Endpoint name must be less than 50 characters'
     };
   }
 
@@ -88,15 +88,15 @@ export function checkForDuplicates(endpoints, name, url) {
   const normalizedName = name.toLowerCase().trim();
   const normalizedUrl = url.toLowerCase().trim();
 
-  const duplicate = endpoints.some(endpoint => 
-    endpoint.url.toLowerCase() === normalizedUrl || 
+  const duplicate = endpoints.some(endpoint =>
+    endpoint.url.toLowerCase() === normalizedUrl ||
     endpoint.name.toLowerCase() === normalizedName
   );
 
   if (duplicate) {
-    return { 
-      duplicate: true, 
-      error: 'Endpoint with this name or URL already exists' 
+    return {
+      duplicate: true,
+      error: 'Endpoint with this name or URL already exists'
     };
   }
 

@@ -204,7 +204,7 @@ function startSnoozeTimer() {
             if (!response.isSnoozed) {
                 clearInterval(timer);
             }
-        } catch (error) {
+        } catch (_error) {
             clearInterval(timer);
         }
     }, 60000); // Update every minute

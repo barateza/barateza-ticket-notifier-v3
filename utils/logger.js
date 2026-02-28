@@ -22,7 +22,7 @@ class LoggerInstance {
      */
     info(...args) {
         if (this.debugEnabled) {
-            console.log(...args);
+            console.warn('[INFO]', ...args);
         }
     }
 
