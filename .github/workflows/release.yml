@@ -44,33 +44,18 @@ jobs:
       
       - name: Extract version from tag
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-      
-      - name: Create extension zip
         run: |
-          mkdir -p barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}
-          
-          # Copy extension files only
-          cp background.js barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
-          cp manifest.json barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
-          cp popup.html barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
-          cp popup.js barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
-          cp popup.css barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
-          cp offscreen.html barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
-          cp offscreen.js barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
-          cp PRIVACY_POLICY.md barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
-          cp -r icons/ barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
-          cp -r utils/ barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
-          
-          # Create zip
-          zip -r barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}.zip barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}/
-          
-          ls -lh barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}.zip
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION_NUMBER=${VERSION#v}" >> $GITHUB_OUTPUT
+      
+      - name: Build extension
+        run: npm run build
       
       - name: Create Release with Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}.zip
+          files: dist/*.zip
           body: |
             ## Release ${{ steps.version.outputs.VERSION }}
             
@@ -78,7 +63,7 @@ jobs:
             See commits between this and previous release.
             
             ### Installation
-            1. Download `barateza-ticket-notifier-${{ steps.version.outputs.VERSION }}.zip`
+            1. Download `barateza-ticket-notifier-${{ steps.version.outputs.VERSION_NUMBER }}.zip`
             2. Extract the archive
             3. Open Chrome extensions page (`chrome://extensions`)
             4. Enable "Developer mode"
