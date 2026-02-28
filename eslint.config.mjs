@@ -20,9 +20,12 @@ export default [
             }
         },
         rules: {
-            'no-unused-vars': 'warn',
-            'no-console': 'off',
-            'no-case-declarations': 'warn'
+            'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+            'no-console': ['error', { allow: ['warn', 'error'] }],
+            'no-case-declarations': 'error',
+            'eqeqeq': ['error', 'always'],
+            'no-var': 'error',
+            'prefer-const': 'error'
         }
     },
     {

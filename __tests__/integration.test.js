@@ -1,5 +1,3 @@
-import { validateEndpointUrl, validateEndpointName, validateEndpoint, checkForDuplicates } from '../utils/validators.js';
-import * as Background from '../background.js';
 
 
 describe('Integration Tests - Phase 3', () => {
@@ -70,8 +68,8 @@ describe('Integration Tests - Phase 3', () => {
       return Promise.resolve({ success: true });
     });
 
-    chrome.notifications.create.mockImplementation((id, options) => {
-      return Promise.resolve(id);
+    chrome.notifications.create.mockImplementation((_id, _options) => {
+      return Promise.resolve(_id);
     });
 
     chrome.cookies.getAll.mockResolvedValue([
@@ -161,14 +159,14 @@ describe('Integration Tests - Phase 3', () => {
     });
 
     test('should recover from error in monitoring loop', (done) => {
-      chrome.storage.local.get.mockImplementationOnce((keys, callback) => {
+      chrome.storage.local.get.mockImplementationOnce((_keys, _callback) => {
         throw new Error('Storage read failed');
       });
 
       try {
         chrome.storage.local.get(['endpoints'], () => { });
-      } catch (error) {
-        expect(error.message).toBe('Storage read failed');
+      } catch (_error) {
+        expect(_error.message).toBe('Storage read failed');
       }
 
       // Reset and retry
@@ -222,7 +220,7 @@ describe('Integration Tests - Phase 3', () => {
       const endpointUrl = mockStorage.endpoints[0].url;
 
       // Notification click handler
-      const handleNotificationClick = (id) => {
+      const handleNotificationClick = (_id) => {
         chrome.tabs.create({ url: endpointUrl });
       };
 
@@ -453,7 +451,7 @@ describe('Integration Tests - Phase 3', () => {
 
     test('should handle multiple endpoints with mixed notification states', (done) => {
       chrome.storage.local.get(['endpoints'], (data) => {
-        const endpoints = data.endpoints;
+        const _endpoints = data.endpoints;
 
         // Endpoint 1: has new tickets, snooze not active → should notify
         mockStorage.snoozeState = { active: false, until: null };
@@ -494,7 +492,7 @@ describe('Integration Tests - Phase 3', () => {
 
     test('should handle endpoint enable/disable during monitoring', (done) => {
       chrome.storage.local.get(['endpoints'], (data) => {
-        let endpoints = data.endpoints;
+        const endpoints = data.endpoints;
 
         // Disable second endpoint
         endpoints[1].enabled = false;

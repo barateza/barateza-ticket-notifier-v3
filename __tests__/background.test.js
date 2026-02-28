@@ -1,4 +1,4 @@
-import { validateEndpointUrl, validateEndpointName, validateEndpoint, checkForDuplicates } from '../utils/validators.js';
+import { validateEndpointUrl, validateEndpointName } from '../utils/validators.js';
 import * as Background from '../background.js';
 
 describe('Background Service Worker - High Priority Functions', () => {
@@ -24,7 +24,8 @@ describe('Background Service Worker - High Priority Functions', () => {
       }
     };
 
-    let sessionStorage = {};
+    const sessionStorage = {};
+
 
     // Mock chrome.storage.local
     chrome.storage.local.get.mockImplementation((keys, callback) => {

@@ -1,10 +1,9 @@
-import { validateEndpointUrl, validateEndpointName, validateEndpoint, checkForDuplicates } from '../utils/validators.js';
-import * as Popup from '../popup.js';
+import { validateEndpointUrl, validateEndpointName } from '../utils/validators.js';
+
 
 
 describe('Popup UI - Phase 2', () => {
   let mockStorage;
-  let mockDocument;
 
   beforeEach(() => {
     jest.clearAllMocks();
