@@ -13,8 +13,8 @@ describe('Popup UI - Phase 2', () => {
       endpoints: [
         {
           id: 1,
-          name: 'AMER - New Tickets',
-          url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+group:amer+status:new',
+          name: 'My Tickets',
+          url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+assignee:me+status:open',
           enabled: true
         }
       ],
@@ -71,7 +71,7 @@ describe('Popup UI - Phase 2', () => {
     });
 
     test('should validate endpoint name is required and within length limits', () => {
-      expect(validateEndpointName('AMER - New Tickets').valid).toBe(true);
+      expect(validateEndpointName('My Tickets').valid).toBe(true);
       expect(validateEndpointName('').valid).toBe(false);
       expect(validateEndpointName('   ').valid).toBe(false);
       expect(validateEndpointName('a'.repeat(51)).valid).toBe(false);
@@ -80,7 +80,7 @@ describe('Popup UI - Phase 2', () => {
     test('should prevent duplicate endpoint URLs', (done) => {
       chrome.storage.local.get(['endpoints'], (data) => {
         const existingUrls = data.endpoints.map(e => e.url);
-        const newUrl = 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+group:amer+status:new';
+        const newUrl = 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+assignee:me+status:open';
 
         const isDuplicate = existingUrls.includes(newUrl);
 
@@ -115,7 +115,7 @@ describe('Popup UI - Phase 2', () => {
 
         endpointsList.innerHTML = html;
 
-        expect(endpointsList.innerHTML).toContain('AMER - New Tickets');
+        expect(endpointsList.innerHTML).toContain('My Tickets');
         expect(endpointsList.children.length).toBe(1);
         done();
       });
@@ -137,7 +137,7 @@ describe('Popup UI - Phase 2', () => {
         const nameEl = endpointsList.querySelector('.endpoint-name');
         const urlEl = endpointsList.querySelector('.endpoint-url');
 
-        expect(nameEl.textContent).toBe('AMER - New Tickets');
+        expect(nameEl.textContent).toBe('My Tickets');
         expect(urlEl.textContent).toContain('cpanel.zendesk.com');
         done();
       });

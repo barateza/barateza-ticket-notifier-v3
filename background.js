@@ -113,8 +113,8 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     updates.endpoints = [
       {
         id: Date.now(),
-        name: 'New AMER Tickets',
-        url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+group:amer+assignee:none+status:new',
+        name: 'My Tickets',
+        url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+assignee:me+status:open',
         enabled: true
       }
     ];

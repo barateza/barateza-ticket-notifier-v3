@@ -18,7 +18,7 @@ A Chrome extension that monitors Zendesk ticket endpoints and notifies you with 
 
 ### Download & Install (2 minutes)
 
-1. **[Download v3.3.0](https://github.com/barateza/barateza-ticket-notifier-v3/releases/download/v3.3.0/barateza-ticket-notifier-3.3.0.zip)** - Extract the ZIP file to your computer
+1. **[Download v3.3.1](https://github.com/barateza/barateza-ticket-notifier-v3/releases/download/v3.3.1/barateza-ticket-notifier-3.3.1.zip)** - Extract the ZIP file to your computer
 2. **Open Chrome** and go to `chrome://extensions/`
 3. **Enable "Developer mode"** (toggle in the top right)
 4. **Click "Load unpacked"** and select the extracted folder
@@ -76,8 +76,8 @@ A Chrome extension that monitors Zendesk ticket endpoints and notifies you with 
 The extension monitors Zendesk Search API endpoints. Here are some examples:
 
 ``` text
-# New unassigned tickets in AMER group
-https://your-domain.zendesk.com/api/v2/search.json?query=type:ticket+group:amer+assignee:none+status:new
+# My Unsolved Tickets
+https://your-domain.zendesk.com/api/v2/search.json?query=type:ticket+assignee:me+status:open
 
 # High priority tickets
 https://your-domain.zendesk.com/api/v2/search.json?query=type:ticket+priority:high+status:open
@@ -250,6 +250,10 @@ Feel free to submit issues, feature requests, or pull requests to improve this e
 This project is provided as-is for educational and development purposes.
 
 ## Changelog
+
+### Version 3.3.1
+
+- 🔄 **Default Endpoint**: Updated default endpoint from 'New AMER Tickets' to 'My Tickets' for better out-of-the-box utility.
 
 ### Version 3.3.0
 

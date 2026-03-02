@@ -23,8 +23,8 @@ describe('Background – Unit Tests', () => {
             endpoints: [
                 {
                     id: 1,
-                    name: 'AMER Tickets',
-                    url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+status:new',
+                    name: 'My Tickets',
+                    url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+assignee:me+status:open',
                     enabled: true
                 }
             ]
@@ -213,25 +213,25 @@ describe('Background – Unit Tests', () => {
     describe('notifyNewTickets()', () => {
         const endpoint = {
             id: 1,
-            name: 'AMER Tickets',
-            url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+status:new'
+            name: 'My Tickets',
+            url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+assignee:me+status:open'
         };
 
         test('creates notification when notifications are enabled and not snoozed', async () => {
             const settings = { soundEnabled: false, notificationEnabled: true };
 
-            await Background.notifyNewTickets('AMER Tickets', 3, 10, settings, endpoint);
+            await Background.notifyNewTickets('My Tickets', 3, 10, settings, endpoint);
 
             expect(chrome.notifications.create).toHaveBeenCalledWith(
                 expect.stringContaining('ticket-notification-1'),
-                expect.objectContaining({ type: 'basic', title: expect.stringContaining('AMER Tickets') })
+                expect.objectContaining({ type: 'basic', title: expect.stringContaining('My Tickets') })
             );
         });
 
         test('plays sound when soundEnabled is true and not snoozed', async () => {
             const settings = { soundEnabled: true, notificationEnabled: false };
 
-            await Background.notifyNewTickets('AMER Tickets', 2, 7, settings, endpoint);
+            await Background.notifyNewTickets('My Tickets', 2, 7, settings, endpoint);
 
             // playNotificationSound() routes through createOffscreen() — verify it was invoked
             expect(chrome.offscreen.hasDocument).toHaveBeenCalled();
@@ -241,7 +241,7 @@ describe('Background – Unit Tests', () => {
             mockLocalStorage.snoozeState = { endTime: Date.now() + 3600000, duration: 60 };
             const settings = { soundEnabled: true, notificationEnabled: true };
 
-            await Background.notifyNewTickets('AMER Tickets', 5, 15, settings, endpoint);
+            await Background.notifyNewTickets('My Tickets', 5, 15, settings, endpoint);
 
             expect(chrome.notifications.create).not.toHaveBeenCalled();
             expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
@@ -250,7 +250,7 @@ describe('Background – Unit Tests', () => {
         test('skips notification when notificationEnabled is false', async () => {
             const settings = { soundEnabled: false, notificationEnabled: false };
 
-            await Background.notifyNewTickets('AMER Tickets', 1, 6, settings, endpoint);
+            await Background.notifyNewTickets('My Tickets', 1, 6, settings, endpoint);
 
             expect(chrome.notifications.create).not.toHaveBeenCalled();
         });

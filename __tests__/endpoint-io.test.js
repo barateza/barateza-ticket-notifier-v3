@@ -13,8 +13,8 @@ import {
 
 const VALID_ENDPOINT = {
     id: 100,
-    name: 'AMER Tickets',
-    url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket',
+    name: 'My Tickets',
+    url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+assignee:me+status:open',
     enabled: true,
     createdAt: 1000
 };

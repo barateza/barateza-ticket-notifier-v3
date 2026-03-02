@@ -12,8 +12,8 @@ describe('Background Service Worker - High Priority Functions', () => {
       endpoints: [
         {
           id: 1,
-          name: 'AMER - New Tickets',
-          url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+group:amer+assignee:none+status:new',
+          name: 'My Tickets',
+          url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+assignee:me+status:open',
           enabled: true
         }
       ],
@@ -128,7 +128,7 @@ describe('Background Service Worker - High Priority Functions', () => {
     });
 
     test('should validate endpoint name is not empty', () => {
-      const validResult = validateEndpointName('AMER - New Tickets');
+      const validResult = validateEndpointName('My Tickets');
       const emptyResult = validateEndpointName('');
       const whitespaceResult = validateEndpointName('   ');
       const tooLongResult = validateEndpointName('a'.repeat(51));
@@ -245,7 +245,7 @@ describe('Background Service Worker - High Priority Functions', () => {
       chrome.storage.local.get(['endpoints'], (data) => {
         expect(data.endpoints).toBeDefined();
         expect(Array.isArray(data.endpoints)).toBe(true);
-        expect(data.endpoints[0].name).toBe('AMER - New Tickets');
+        expect(data.endpoints[0].name).toBe('My Tickets');
         done();
       });
     });

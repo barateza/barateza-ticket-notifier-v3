@@ -13,8 +13,8 @@ describe('Integration Tests - Phase 3', () => {
       endpoints: [
         {
           id: 1,
-          name: 'AMER - New Tickets',
-          url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+group:amer+status:new',
+          name: 'My Tickets',
+          url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+assignee:me+status:open',
           enabled: true
         },
         {
@@ -37,7 +37,7 @@ describe('Integration Tests - Phase 3', () => {
 
     // Track endpoint counts
     mockEndpointCounts = new Map();
-    mockEndpointCounts.set(1, 3); // AMER: 3 tickets initially
+    mockEndpointCounts.set(1, 3); // My Tickets: 3 tickets initially
     mockEndpointCounts.set(2, 5); // EMEA: 5 tickets initially
 
     // Track message passing
@@ -207,7 +207,7 @@ describe('Integration Tests - Phase 3', () => {
         `ticket-${endpoint.id}`,
         expect.objectContaining({
           type: 'basic',
-          title: expect.stringContaining('AMER - New Tickets')
+          title: expect.stringContaining('My Tickets')
         })
       );
 
