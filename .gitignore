@@ -42,8 +42,19 @@ yarn-error.log*
 .Trashes
 ehthumbs.db
 
+# Playwright E2E
+.playwright-auth-data/
+playwright-report/
+
 # AI / Agents / Specs
 /.agent
 /.agents
 /.gemini
 /.specs
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
