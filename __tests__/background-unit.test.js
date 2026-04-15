@@ -4,14 +4,13 @@
  */
 
 import * as Background from '../background.js';
+const alarmListeners = chrome.alarms.onAlarm.addListener.mock.calls.map(([listener]) => listener);
 
 describe('Background – Unit Tests', () => {
     let mockLocalStorage;
     let mockSessionStorage;
 
     beforeEach(() => {
-        jest.clearAllMocks();
-
         mockLocalStorage = {
             settings: {
                 checkInterval: 1,
@@ -87,6 +86,22 @@ describe('Background – Unit Tests', () => {
         });
     });
 
+    afterEach(async () => {
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            status: 200,
+            json: async () => ({ count: 0 })
+        });
+        for (const listener of alarmListeners) {
+            await listener({ name: 'rateLimitResume' });
+        }
+        jest.clearAllMocks();
+        mockLocalStorage = {};
+        mockSessionStorage = {};
+        delete chrome.runtime.lastError;
+        await Background.clearSnooze();
+    });
+
     // ─── Snooze Functions ───────────────────────────────────────────────────────
 
     describe('setSnooze()', () => {
@@ -138,7 +153,7 @@ describe('Background – Unit Tests', () => {
 
     describe('isSnoozed()', () => {
         test('returns true when snooze is active and not expired', async () => {
-            mockLocalStorage.snoozeState = { endTime: Date.now() + 3600000, duration: 60 };
+            await Background.setSnooze(60);
 
             const snoozed = await Background.isSnoozed();
 
@@ -162,7 +177,7 @@ describe('Background – Unit Tests', () => {
 
     describe('getRemainingSnoozeTime()', () => {
         test('returns remaining minutes when snoozed', async () => {
-            mockLocalStorage.snoozeState = { endTime: Date.now() + 30 * 60 * 1000, duration: 30 };
+            await Background.setSnooze(30);
 
             const remaining = await Background.getRemainingSnoozeTime();
 
@@ -198,7 +213,7 @@ describe('Background – Unit Tests', () => {
         });
 
         test('shows snooze badge when snoozed', async () => {
-            mockLocalStorage.snoozeState = { endTime: Date.now() + 3600000, duration: 60 };
+            await Background.setSnooze(60);
             mockSessionStorage.endpointCounts = [[1, 3]];
 
             await Background.updateBadge();
@@ -238,7 +253,7 @@ describe('Background – Unit Tests', () => {
         });
 
         test('skips notification and sound when snoozed', async () => {
-            mockLocalStorage.snoozeState = { endTime: Date.now() + 3600000, duration: 60 };
+            await Background.setSnooze(60);
             const settings = { soundEnabled: true, notificationEnabled: true };
 
             await Background.notifyNewTickets('My Tickets', 5, 15, settings, endpoint);
@@ -275,6 +290,17 @@ describe('Background – Unit Tests', () => {
             await Background.createOffscreen();
 
             expect(chrome.offscreen.createDocument).not.toHaveBeenCalled();
+        });
+
+        test('uses a single createDocument call during concurrent creation', async () => {
+            chrome.offscreen.hasDocument.mockResolvedValue(false);
+
+            await Promise.all([
+                Background.createOffscreen(),
+                Background.createOffscreen()
+            ]);
+
+            expect(chrome.offscreen.createDocument).toHaveBeenCalledTimes(1);
         });
     });
 
@@ -325,6 +351,83 @@ describe('Background – Unit Tests', () => {
             await Background.checkAllEndpoints();
 
             expect(global.fetch).not.toHaveBeenCalled();
+        });
+
+        test('reuses cached cookies for endpoints on the same domain in a cycle', async () => {
+            mockLocalStorage.endpoints = [
+                {
+                    id: 1,
+                    name: 'Endpoint A',
+                    url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+status:new',
+                    enabled: true
+                },
+                {
+                    id: 2,
+                    name: 'Endpoint B',
+                    url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+status:open',
+                    enabled: true
+                }
+            ];
+
+            await Background.checkAllEndpoints();
+
+            expect(chrome.cookies.getAll).toHaveBeenCalledTimes(1);
+            expect(global.fetch).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    describe('checkEndpoint() edge cases', () => {
+        const endpoint = {
+            id: 1,
+            name: 'My Tickets',
+            url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+status:new',
+            enabled: true
+        };
+        const settings = { soundEnabled: true, notificationEnabled: true };
+
+        test('handles cookie retrieval failure (empty cookie string) without fetch', async () => {
+            chrome.cookies.getAll.mockRejectedValue(new Error('cookie failure'));
+            global.fetch = jest.fn();
+
+            await expect(Background.checkEndpoint(endpoint, settings)).resolves.toBeUndefined();
+            expect(global.fetch).not.toHaveBeenCalled();
+        });
+
+        test('handles non-JSON HTML response body without crashing worker', async () => {
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: true,
+                status: 200,
+                json: async () => {
+                    throw new SyntaxError('Unexpected token < in JSON');
+                }
+            });
+
+            await expect(Background.checkEndpoint(endpoint, settings)).resolves.toBeUndefined();
+            expect(chrome.notifications.create).not.toHaveBeenCalled();
+        });
+
+        test('handles chrome.storage.session.set QUOTA_BYTES errors gracefully', async () => {
+            chrome.storage.session.set.mockImplementation((_data, callback) => {
+                chrome.runtime.lastError = { message: 'QUOTA_BYTES quota exceeded' };
+                if (callback) callback();
+            });
+
+            await expect(Background.checkEndpoint(endpoint, settings)).resolves.toBeUndefined();
+            expect(global.fetch).toHaveBeenCalled();
+        });
+
+        test('pauses monitoring when Zendesk responds with HTTP 429 and Retry-After', async () => {
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: false,
+                status: 429,
+                headers: {
+                    get: (key) => key === 'Retry-After' ? '60' : null
+                }
+            });
+
+            await expect(Background.checkEndpoint(endpoint, settings)).resolves.toBeUndefined();
+            expect(chrome.alarms.clear).toHaveBeenCalledWith('ticketCheck');
+            expect(chrome.alarms.create).toHaveBeenCalledWith('rateLimitResume', expect.any(Object));
         });
     });
 

@@ -38,6 +38,16 @@ async function evaluateInServiceWorker(context, extensionId, fn) {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 test.describe('Background service worker — Chrome API boundaries', () => {
+  test.beforeEach(async ({ context }) => {
+    await context.route('**/*.zendesk.com/api/v2/search.json*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ count: 3, results: [] }),
+      });
+    });
+  });
+
   test('service worker is registered and reachable', async ({ context, extensionId }) => {
     let sw = context.serviceWorkers().find(w => w.url().includes(extensionId));
     if (!sw) {
