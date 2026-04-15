@@ -159,6 +159,7 @@ describe('Integration Tests - Phase 3', () => {
     });
 
     test('should recover from error in monitoring loop', (done) => {
+      let capturedErrorMessage = null;
       chrome.storage.local.get.mockImplementationOnce((_keys, _callback) => {
         throw new Error('Storage read failed');
       });
@@ -166,8 +167,9 @@ describe('Integration Tests - Phase 3', () => {
       try {
         chrome.storage.local.get(['endpoints'], () => { });
       } catch (_error) {
-        expect(_error.message).toBe('Storage read failed');
+        capturedErrorMessage = _error.message;
       }
+      expect(capturedErrorMessage).toBe('Storage read failed');
 
       // Reset and retry
       chrome.storage.local.get.mockImplementation((keys, callback) => {
