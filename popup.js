@@ -184,6 +184,7 @@ export async function updateSnoozeStatus() {
         if (response.isSnoozed) {
             Logger.info('Snooze is active, showing banner');
             snoozeStatus.classList.remove('hidden');
+            // Keep indefinite check first because it intentionally shares remainingTime=0.
             if (response.isIndefiniteSnooze) {
                 snoozeRemaining.textContent = 'Until I turn back on';
             } else if (response.remainingTime === 0) {
@@ -402,6 +403,11 @@ function createEndpointElement(endpoint, index) {
     return div;
 }
 
+/**
+ * Re-index endpoint row/button data-index attributes after row deletions
+ * so delegated click handlers continue mapping DOM rows to storage array indexes.
+ * @param {HTMLElement} container
+ */
 function reindexEndpointElements(container) {
     const items = container.querySelectorAll('.endpoint-item');
     items.forEach((item, index) => {

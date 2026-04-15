@@ -8,6 +8,7 @@ import Logger from './utils/logger.js';
 // runtime state and local for durable user data.
 
 const MIN_REFRESH_INTERVAL = 30000; // 30 seconds minimum between manual refreshes
+const MIN_ALARM_DELAY_MINUTES = 1 / 60; // 1 second in minutes for one-shot resume alarms
 const SNOOZE_INDEFINITE = -1;
 const NO_SNOOZE = 0;
 let cachedSnoozeEndTime = null; // null = not hydrated yet
@@ -138,7 +139,7 @@ async function pauseMonitoringUntil(resumeAtMs) {
   rateLimitResumeAt = resumeAtMs;
   await chrome.alarms.clear('ticketCheck');
   await chrome.alarms.create('rateLimitResume', {
-    delayInMinutes: Math.max(1 / 60, (resumeAtMs - Date.now()) / 60000)
+    delayInMinutes: Math.max(MIN_ALARM_DELAY_MINUTES, (resumeAtMs - Date.now()) / 60000)
   });
   Logger.info('Zendesk rate limit active, pausing monitoring until:', new Date(rateLimitResumeAt));
 }
@@ -318,7 +319,7 @@ export async function startMonitoring() {
   Logger.info('Starting Zendesk monitoring');
   if (isRateLimitedNow()) {
     await chrome.alarms.create('rateLimitResume', {
-      delayInMinutes: Math.max(1 / 60, (rateLimitResumeAt - Date.now()) / 60000)
+      delayInMinutes: Math.max(MIN_ALARM_DELAY_MINUTES, (rateLimitResumeAt - Date.now()) / 60000)
     });
     Logger.info('Monitoring remains paused due to active Zendesk rate limiting');
     return;
@@ -402,6 +403,7 @@ export async function checkEndpoint(endpoint, settings, retryCount = 0, cookieCa
     if (cookieCache && cookieCache.has(domain)) {
       cookiesPromiseOrValue = cookieCache.get(domain);
     } else {
+      // Store the in-flight promise first so concurrent checks dedupe cookie reads.
       cookiesPromiseOrValue = getZendeskCookies(domain);
       if (cookieCache) {
         cookieCache.set(domain, cookiesPromiseOrValue);
@@ -412,7 +414,7 @@ export async function checkEndpoint(endpoint, settings, retryCount = 0, cookieCa
       cookieCache.set(domain, cookies);
     }
     if (!cookies) {
-      Logger.error(`No Zendesk auth cookies available for ${endpoint.name}`);
+      Logger.error(`No Zendesk auth cookies for ${endpoint.name}. Please log in to ${domain} in your browser.`);
       return;
     }
 

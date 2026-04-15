@@ -92,12 +92,11 @@ describe('Background – Unit Tests', () => {
             status: 200,
             json: async () => ({ count: 0 })
         });
+        // Reset module-level rateLimitResumeAt by simulating the resume alarm event.
         for (const listener of alarmListeners) {
             await listener({ name: 'rateLimitResume' });
         }
         jest.clearAllMocks();
-        mockLocalStorage = {};
-        mockSessionStorage = {};
         delete chrome.runtime.lastError;
         await Background.clearSnooze();
     });
