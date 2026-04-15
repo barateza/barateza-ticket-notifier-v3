@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   test:
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
@@ -26,13 +29,6 @@ jobs:
       
       - name: Run tests
         run: npm test -- --no-coverage
-      
-      - name: Upload coverage
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results
-          path: coverage/
 
   release:
     needs: test
