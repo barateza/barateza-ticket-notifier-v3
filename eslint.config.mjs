@@ -38,6 +38,14 @@ export default [
         }
     },
     {
+        files: ['scripts/**/*.mjs', '__tests__/e2e/**/*.mjs', 'playwright.config.mjs'],
+        languageOptions: {
+            globals: {
+                ...globals.node
+            }
+        }
+    },
+    {
         files: ['__tests__/**/*.js', '**/*.test.js'],
         plugins: {
             jest: jest

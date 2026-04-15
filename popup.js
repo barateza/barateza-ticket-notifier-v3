@@ -184,8 +184,11 @@ export async function updateSnoozeStatus() {
         if (response.isSnoozed) {
             Logger.info('Snooze is active, showing banner');
             snoozeStatus.classList.remove('hidden');
-            if (response.remainingTime === 0) {
+            // Keep indefinite check first because it intentionally shares remainingTime=0.
+            if (response.isIndefiniteSnooze) {
                 snoozeRemaining.textContent = 'Until I turn back on';
+            } else if (response.remainingTime === 0) {
+                snoozeRemaining.textContent = 'Less than 1 minute remaining';
             } else if (response.remainingTime === 1) {
                 snoozeRemaining.textContent = '1 minute remaining';
             } else if (response.remainingTime < 60) {
@@ -360,12 +363,11 @@ export async function loadEndpoints() {
             return;
         }
 
-        endpointsList.innerHTML = '';
-
+        const fragment = document.createDocumentFragment();
         endpoints.forEach((endpoint, index) => {
-            const endpointElement = createEndpointElement(endpoint, index);
-            endpointsList.appendChild(endpointElement);
+            fragment.appendChild(createEndpointElement(endpoint, index));
         });
+        endpointsList.replaceChildren(fragment);
 
     } catch (error) {
         Logger.error('Error loading endpoints:', error);
@@ -377,6 +379,8 @@ export async function loadEndpoints() {
 function createEndpointElement(endpoint, index) {
     const div = document.createElement('div');
     div.className = 'endpoint-item';
+    div.dataset.index = String(index);
+    div.dataset.endpointId = String(endpoint.id);
 
     div.innerHTML = `
         <div class="endpoint-info">
@@ -399,6 +403,22 @@ function createEndpointElement(endpoint, index) {
     return div;
 }
 
+/**
+ * Re-index endpoint row/button data-index attributes after row deletions
+ * so delegated click handlers continue mapping DOM rows to storage array indexes.
+ * @param {HTMLElement} container
+ */
+function reindexEndpointElements(container) {
+    const items = container.querySelectorAll('.endpoint-item');
+    items.forEach((item, index) => {
+        item.dataset.index = String(index);
+        const toggleBtn = item.querySelector('.toggle-endpoint-btn');
+        const deleteBtn = item.querySelector('.delete-endpoint-btn');
+        if (toggleBtn) toggleBtn.dataset.index = String(index);
+        if (deleteBtn) deleteBtn.dataset.index = String(index);
+    });
+}
+
 // Toggle endpoint enabled/disabled
 async function toggleEndpoint(index) {
     try {
@@ -408,7 +428,14 @@ async function toggleEndpoint(index) {
             endpoints[index].enabled = !endpoints[index].enabled;
             const saved = await saveEndpoints(endpoints);
             if (saved) {
-                await loadEndpoints();
+                const endpointsList = document.getElementById('endpointsList');
+                const currentNode = endpointsList.querySelector(`.endpoint-item[data-index="${index}"]`);
+                const updatedNode = createEndpointElement(endpoints[index], index);
+                if (currentNode) {
+                    currentNode.replaceWith(updatedNode);
+                } else {
+                    await loadEndpoints();
+                }
                 showSuccess(`Endpoint ${endpoints[index].enabled ? 'enabled' : 'disabled'}`);
             }
         }
@@ -431,7 +458,18 @@ async function deleteEndpoint(index) {
             endpoints.splice(index, 1);
             const saved = await saveEndpoints(endpoints);
             if (saved) {
-                await loadEndpoints();
+                const endpointsList = document.getElementById('endpointsList');
+                const currentNode = endpointsList.querySelector(`.endpoint-item[data-index="${index}"]`);
+                if (currentNode) {
+                    currentNode.remove();
+                    if (endpoints.length === 0) {
+                        endpointsList.innerHTML = '<div class="error">No endpoints configured</div>';
+                    } else {
+                        reindexEndpointElements(endpointsList);
+                    }
+                } else {
+                    await loadEndpoints();
+                }
                 showSuccess('Endpoint deleted');
             }
         }

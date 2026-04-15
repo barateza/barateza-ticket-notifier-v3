@@ -7,6 +7,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "coverage:report": "node -e \"const fs=require('fs'); if(!fs.existsSync('coverage/coverage-summary.json')){throw new Error('coverage/coverage-summary.json not found. Run tests with coverage first.');} console.log('Coverage report is available at coverage/');\"",
     "test:e2e:setup": "node scripts/setup-e2e-auth.mjs",
     "test:e2e": "playwright test",
     "build": "./scripts/package.sh"

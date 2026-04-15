@@ -6,7 +6,7 @@
 //   - `extensionId` : The unpacked extension's ID, resolved robustly to handle
 //                     the MV3 "type: module" service worker's slower registration.
 
-/* global document, setTimeout */
+/* global document */
 
 import { test as base, chromium } from '@playwright/test';
 import path from 'path';
@@ -91,7 +91,8 @@ async function resolveExtensionId(context) {
 
 export const test = base.extend({
   // Override the default `context` fixture with our persistent one.
-  context: async ({ }, use) => {
+  context: async ({ browserName }, use) => {
+    void browserName;
     const context = await chromium.launchPersistentContext(AUTH_DATA_DIR, {
       headless: false,
       args: [

@@ -8,6 +8,12 @@ import Logger from './utils/logger.js';
 // runtime state and local for durable user data.
 
 const MIN_REFRESH_INTERVAL = 30000; // 30 seconds minimum between manual refreshes
+const MIN_ALARM_DELAY_MINUTES = 1 / 60; // 1 second in minutes for one-shot resume alarms
+const SNOOZE_INDEFINITE = -1;
+const NO_SNOOZE = 0;
+let cachedSnoozeEndTime = null; // null = not hydrated yet
+let creatingOffscreenPromise = null;
+let rateLimitResumeAt = null;
 
 /**
  * Batch-read keys from chrome.storage.session.
@@ -27,8 +33,14 @@ async function getSessionState(keys) {
  * @returns {Promise<void>}
  */
 async function setSessionState(data) {
-  return new Promise((resolve) => {
-    chrome.storage.session.set(data, resolve);
+  return new Promise((resolve, reject) => {
+    chrome.storage.session.set(data, () => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message || 'Failed to write session storage'));
+        return;
+      }
+      resolve();
+    });
   });
 }
 
@@ -88,14 +100,48 @@ async function saveNotificationMap(map) {
  */
 async function rehydrateSnoozeEndTime() {
   const { snoozeState } = await getLocalState(['snoozeState']);
+  if (snoozeState?.endTime === SNOOZE_INDEFINITE) {
+    cachedSnoozeEndTime = SNOOZE_INDEFINITE;
+    return cachedSnoozeEndTime;
+  }
   if (snoozeState && snoozeState.endTime && snoozeState.endTime > Date.now()) {
+    cachedSnoozeEndTime = snoozeState.endTime;
     return snoozeState.endTime;
   }
   // Expired — clean up
   if (snoozeState) {
     await chrome.storage.local.remove('snoozeState');
   }
+  cachedSnoozeEndTime = NO_SNOOZE;
+  return cachedSnoozeEndTime;
+}
+
+function parseRetryAfterMs(retryAfterHeader) {
+  if (!retryAfterHeader) return null;
+  const seconds = Number(retryAfterHeader);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Date.now() + (seconds * 1000);
+  }
+  const dateMs = Date.parse(retryAfterHeader);
+  if (!Number.isNaN(dateMs)) {
+    return dateMs;
+  }
   return null;
+}
+
+function isRateLimitedNow() {
+  return Boolean(rateLimitResumeAt && Date.now() < rateLimitResumeAt);
+}
+
+async function pauseMonitoringUntil(resumeAtMs) {
+  if (!resumeAtMs || resumeAtMs <= Date.now()) return;
+  if (rateLimitResumeAt && rateLimitResumeAt >= resumeAtMs) return;
+  rateLimitResumeAt = resumeAtMs;
+  await chrome.alarms.clear('ticketCheck');
+  await chrome.alarms.create('rateLimitResume', {
+    delayInMinutes: Math.max(MIN_ALARM_DELAY_MINUTES, (resumeAtMs - Date.now()) / 60000)
+  });
+  Logger.info('Zendesk rate limit active, pausing monitoring until:', new Date(rateLimitResumeAt));
 }
 
 // ─── initialize extension ─────────────────────────────────────────────────────
@@ -168,7 +214,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 
   // Restore snooze state from local storage if still valid
   const snoozeEndTime = await rehydrateSnoozeEndTime();
-  if (snoozeEndTime) {
+  if (snoozeEndTime && snoozeEndTime !== SNOOZE_INDEFINITE) {
     const delay = snoozeEndTime - Date.now();
     chrome.alarms.create('snoozeEnd', { delayInMinutes: delay / 60000 });
     Logger.info('Restored snooze state from storage, ending at:', new Date(snoozeEndTime));
@@ -182,6 +228,12 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'snoozeEnd') {
     await clearSnooze();
+    return;
+  }
+
+  if (alarm.name === 'rateLimitResume') {
+    rateLimitResumeAt = null;
+    await startMonitoring();
   }
 });
 
@@ -193,11 +245,13 @@ export async function setSnooze(durationMinutes) {
   let snoozeEndTime;
 
   if (durationMinutes === 0) {
-    // "Until I turn back on" - set snooze to a far future time
-    snoozeEndTime = now + (1000 * 60 * 60 * 24 * 365); // 1 year
+    // "Until I turn back on"
+    snoozeEndTime = SNOOZE_INDEFINITE;
   } else {
     snoozeEndTime = now + (1000 * 60 * durationMinutes);
   }
+
+  cachedSnoozeEndTime = snoozeEndTime;
 
   // Save snooze state to local storage (survives browser close)
   await chrome.storage.local.set({
@@ -226,6 +280,7 @@ export async function setSnooze(durationMinutes) {
 export async function clearSnooze() {
   await chrome.storage.local.remove('snoozeState');
   await chrome.alarms.clear('snoozeEnd');
+  cachedSnoozeEndTime = NO_SNOOZE;
   Logger.info('Notifications no longer snoozed');
 
   // Update badge
@@ -237,14 +292,23 @@ export async function clearSnooze() {
 // Check if notifications are currently snoozed
 // NOTE: This is intentionally async to support re-hydration after SW restarts.
 export async function isSnoozed() {
-  const snoozeEndTime = await rehydrateSnoozeEndTime();
-  return snoozeEndTime !== null;
+  if (cachedSnoozeEndTime === null) {
+    await rehydrateSnoozeEndTime();
+  }
+  if (cachedSnoozeEndTime === SNOOZE_INDEFINITE) {
+    return true;
+  }
+  return Boolean(cachedSnoozeEndTime > NO_SNOOZE && cachedSnoozeEndTime > Date.now());
 }
 
 // Get remaining snooze time in minutes
 export async function getRemainingSnoozeTime() {
-  const snoozeEndTime = await rehydrateSnoozeEndTime();
-  if (!snoozeEndTime) return 0;
+  if (cachedSnoozeEndTime === null) {
+    await rehydrateSnoozeEndTime();
+  }
+  const snoozeEndTime = cachedSnoozeEndTime;
+  if (!snoozeEndTime || snoozeEndTime === NO_SNOOZE) return 0;
+  if (snoozeEndTime === SNOOZE_INDEFINITE) return 0;
   return Math.ceil((snoozeEndTime - Date.now()) / 60000); // minutes
 }
 
@@ -253,6 +317,13 @@ export async function getRemainingSnoozeTime() {
 // Start the monitoring process
 export async function startMonitoring() {
   Logger.info('Starting Zendesk monitoring');
+  if (isRateLimitedNow()) {
+    await chrome.alarms.create('rateLimitResume', {
+      delayInMinutes: Math.max(MIN_ALARM_DELAY_MINUTES, (rateLimitResumeAt - Date.now()) / 60000)
+    });
+    Logger.info('Monitoring remains paused due to active Zendesk rate limiting');
+    return;
+  }
 
   // Get current settings to determine check interval
   const { settings } = await getLocalState(['settings']);
@@ -272,6 +343,10 @@ export async function startMonitoring() {
 // Handle alarm events
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'ticketCheck') {
+    if (isRateLimitedNow()) {
+      Logger.info('Skipping ticket check due to active Zendesk rate limiting');
+      return;
+    }
     const { isEnabled } = await getSessionState(['isEnabled']);
     if (isEnabled !== false) { // default to enabled if not set
       checkAllEndpoints();
@@ -282,6 +357,10 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 // Main function to check all configured endpoints
 export async function checkAllEndpoints() {
   Logger.info('Checking all endpoints...');
+  if (isRateLimitedNow()) {
+    Logger.info('Skipping endpoint checks due to active Zendesk rate limiting');
+    return;
+  }
 
   try {
     const { endpoints, settings } = await getLocalState(['endpoints', 'settings']);
@@ -294,11 +373,12 @@ export async function checkAllEndpoints() {
     // Check endpoints in parallel with concurrency control (max 3 at a time)
     const enabledEndpoints = endpoints.filter(endpoint => endpoint.enabled);
     const concurrency = 3;
+    const cookieCache = new Map();
 
     for (let i = 0; i < enabledEndpoints.length; i += concurrency) {
       const batch = enabledEndpoints.slice(i, i + concurrency);
       await Promise.all(
-        batch.map(endpoint => checkEndpoint(endpoint, settings))
+        batch.map(endpoint => checkEndpoint(endpoint, settings, 0, cookieCache))
       );
     }
 
@@ -309,7 +389,7 @@ export async function checkAllEndpoints() {
 }
 
 // Check a single endpoint with retry logic
-export async function checkEndpoint(endpoint, settings, retryCount = 0) {
+export async function checkEndpoint(endpoint, settings, retryCount = 0, cookieCache = null) {
   const maxRetries = 2;
   try {
     Logger.info(`Checking endpoint: ${endpoint.name}`);
@@ -319,7 +399,24 @@ export async function checkEndpoint(endpoint, settings, retryCount = 0) {
     const domain = url.hostname;
 
     // Try to get authentication cookies
-    const cookies = await getZendeskCookies(domain);
+    let cookiesPromiseOrValue;
+    if (cookieCache && cookieCache.has(domain)) {
+      cookiesPromiseOrValue = cookieCache.get(domain);
+    } else {
+      // Store the in-flight promise first so concurrent checks dedupe cookie reads.
+      cookiesPromiseOrValue = getZendeskCookies(domain);
+      if (cookieCache) {
+        cookieCache.set(domain, cookiesPromiseOrValue);
+      }
+    }
+    const cookies = await cookiesPromiseOrValue;
+    if (cookieCache) {
+      cookieCache.set(domain, cookies);
+    }
+    if (!cookies) {
+      Logger.error(`No Zendesk auth cookies for ${endpoint.name}. Please log in to ${domain} in your browser.`);
+      return;
+    }
 
     // Make API request with cookies
     const response = await fetch(endpoint.url, {
@@ -334,16 +431,31 @@ export async function checkEndpoint(endpoint, settings, retryCount = 0) {
     });
 
     if (!response.ok) {
+      if (response.status === 429) {
+        const retryAfter = response.headers?.get('Retry-After');
+        const resumeAt = parseRetryAfterMs(retryAfter);
+        if (resumeAt) {
+          await pauseMonitoringUntil(resumeAt);
+        }
+        Logger.error(`Rate limited by Zendesk for ${endpoint.name} (Retry-After: ${retryAfter || 'missing'})`);
+        return;
+      }
       Logger.error(`HTTP ${response.status} for ${endpoint.name}`);
       if (response.status >= 500 && retryCount < maxRetries) {
         Logger.info(`Retrying ${endpoint.name} (${retryCount + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-        return checkEndpoint(endpoint, settings, retryCount + 1);
+        return checkEndpoint(endpoint, settings, retryCount + 1, cookieCache);
       }
       return;
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      Logger.error(`Invalid JSON response for ${endpoint.name}:`, parseError);
+      return;
+    }
     const newCount = data.count || 0;
 
     // Read the current count map from session storage
@@ -375,7 +487,7 @@ export async function checkEndpoint(endpoint, settings, retryCount = 0) {
     if (retryCount < maxRetries && error.name !== 'AbortError') {
       Logger.info(`Retrying ${endpoint.name} (${retryCount + 1}/${maxRetries})`);
       await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-      return checkEndpoint(endpoint, settings, retryCount + 1);
+      return checkEndpoint(endpoint, settings, retryCount + 1, cookieCache);
     } else if (error.name === 'AbortError') {
       Logger.error(`Endpoint ${endpoint.name} timed out after 10 seconds`);
     }
@@ -466,11 +578,22 @@ export async function playNotificationSound() {
 // Create offscreen document for audio playback
 export async function createOffscreen() {
   if (await chrome.offscreen.hasDocument()) return;
-  await chrome.offscreen.createDocument({
+  if (creatingOffscreenPromise) {
+    await creatingOffscreenPromise;
+    return;
+  }
+
+  creatingOffscreenPromise = chrome.offscreen.createDocument({
     url: 'offscreen.html',
     reasons: ['AUDIO_PLAYBACK'],
     justification: 'Play notification sounds for new Zendesk tickets'
   });
+
+  try {
+    await creatingOffscreenPromise;
+  } finally {
+    creatingOffscreenPromise = null;
+  }
 }
 
 // Update extension badge with total ticket count
@@ -528,13 +651,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const { isEnabled = true, lastCheckTime = 0 } = await getSessionState(['isEnabled', 'lastCheckTime']);
         const counts = Array.from((await getEndpointCounts()).entries());
         const snoozed = await isSnoozed();
-        const snoozeEndTime = await rehydrateSnoozeEndTime();
+        const snoozeEndTime = cachedSnoozeEndTime === null
+          ? await rehydrateSnoozeEndTime()
+          : cachedSnoozeEndTime;
         sendResponse({
           enabled: isEnabled,
           counts,
           lastCheck: lastCheckTime,
           isSnoozed: snoozed,
-          snoozeEndTime
+          snoozeEndTime: snoozeEndTime === NO_SNOOZE ? null : snoozeEndTime
         });
         break;
       }
@@ -556,11 +681,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       case 'getSnoozeStatus': {
         const snoozed = await isSnoozed();
         const remainingTime = await getRemainingSnoozeTime();
-        const snoozeEndTime = await rehydrateSnoozeEndTime();
+        const snoozeEndTime = cachedSnoozeEndTime === null
+          ? await rehydrateSnoozeEndTime()
+          : cachedSnoozeEndTime;
         Logger.info('getSnoozeStatus: isSnoozed=', snoozed, 'snoozeEndTime=', snoozeEndTime, 'remainingTime=', remainingTime);
         sendResponse({
           isSnoozed: snoozed,
-          snoozeEndTime,
+          snoozeEndTime: snoozeEndTime === NO_SNOOZE ? null : snoozeEndTime,
+          isIndefiniteSnooze: snoozeEndTime === SNOOZE_INDEFINITE,
           remainingTime
         });
         break;
@@ -599,6 +727,17 @@ chrome.notifications.onClicked.addListener(async (notificationId) => {
 
 // Handle changes to settings (like Debug Mode)
 chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.snoozeState) {
+    const next = changes.snoozeState.newValue;
+    if (next?.endTime === SNOOZE_INDEFINITE) {
+      cachedSnoozeEndTime = SNOOZE_INDEFINITE;
+    } else if (next?.endTime && next.endTime > Date.now()) {
+      cachedSnoozeEndTime = next.endTime;
+    } else {
+      cachedSnoozeEndTime = NO_SNOOZE;
+    }
+  }
+
   if (area === 'local' && changes.settings) {
     const newSettings = changes.settings.newValue;
     if (newSettings && 'debugMode' in newSettings) {
