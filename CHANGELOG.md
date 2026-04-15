@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [3.3.2] - 2026-04-15
+
+### Added
+- **429 Rate Limit Backoff**: Automatic exponential backoff when Zendesk API returns 429 (Too Many Requests), preventing request failures during rate limiting.
+- **Offscreen Document Lock**: Improved offscreen document lifecycle management to prevent race conditions during audio playback.
+- **Snooze Cache**: Persistent snooze state caching to maintain snooze status across service worker restarts.
+
+### Changed
+- **Test Stability**: Improved test reliability and reduced flaky test failures in background and popup unit tests.
+
 ## [3.3.1] - 2026-03-02
 
 ### Changed
