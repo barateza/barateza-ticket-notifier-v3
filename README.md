@@ -18,7 +18,7 @@ A Chrome extension that monitors Zendesk ticket endpoints and notifies you with 
 
 ### Download & Install (2 minutes)
 
-1. **[Download v3.3.2](https://github.com/barateza/barateza-ticket-notifier-v3/releases/download/v3.3.2/barateza-ticket-notifier-3.3.2.zip)** - Extract the ZIP file to your computer
+1. **[Download v3.3.3](https://github.com/barateza/barateza-ticket-notifier-v3/releases/download/v3.3.3/barateza-ticket-notifier-3.3.3.zip)** - Extract the ZIP file to your computer
 2. **Open Chrome** and go to `chrome://extensions/`
 3. **Enable "Developer mode"** (toggle in the top right)
 4. **Click "Load unpacked"** and select the extracted folder
@@ -250,6 +250,17 @@ Feel free to submit issues, feature requests, or pull requests to improve this e
 This project is provided as-is for educational and development purposes.
 
 ## Changelog
+
+### Version 3.3.3
+
+- 🐛 **SW Messaging Fix**: Popup now gracefully handles service worker unavailability, eliminating "Unchecked runtime.lastError: No SW" console warnings.
+- 🐛 **Storage Robustness**: `getLocalState` and `getSessionState` now return empty objects instead of `undefined` on edge cases, preventing destructuring crashes.
+
+### Version 3.3.2
+
+- ⏱️ **Rate Limit Backoff**: Automatic backoff when Zendesk returns 429 (Too Many Requests).
+- 🔒 **Offscreen Lock**: Improved offscreen document lifecycle to prevent race conditions.
+- 💾 **Snooze Cache**: Persistent snooze state survives service worker restarts.
 
 ### Version 3.3.1
 

@@ -23,7 +23,10 @@ let rateLimitResumeAt = null;
  */
 async function getSessionState(keys) {
   return new Promise((resolve) => {
-    chrome.storage.session.get(keys, (data) => resolve(data));
+    chrome.storage.session.get(keys, (data) => resolve(data || {}));
+    if (chrome.runtime.lastError) {
+      Logger.error('Error reading session storage:', chrome.runtime.lastError.message);
+    }
   });
 }
 
@@ -51,7 +54,10 @@ async function setSessionState(data) {
  */
 async function getLocalState(keys) {
   return new Promise((resolve) => {
-    chrome.storage.local.get(keys, (data) => resolve(data));
+    chrome.storage.local.get(keys, (data) => resolve(data || {}));
+    if (chrome.runtime.lastError) {
+      Logger.error('Error reading from storage:', chrome.runtime.lastError.message);
+    }
   });
 }
 

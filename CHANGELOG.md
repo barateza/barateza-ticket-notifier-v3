@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.3] - 2026-06-26
+
+### Fixed
+- **"Unchecked runtime.lastError: No SW"**: Popup now uses a `sendToSW()` wrapper that properly checks and clears `chrome.runtime.lastError` when the service worker is terminated (normal Manifest V3 behavior).
+- **"Cannot destructure property 'endpoints' of undefined"**: `getLocalState()` and `getSessionState()` in the background worker now return `{}` when storage callbacks fire with falsy data, preventing race-condition crashes on service worker startup.
+
+### Changed
+- All 7 `chrome.runtime.sendMessage` calls in popup.js now go through the central `sendToSW()` helper with null-guards for when the SW isn't reachable.
+
 ## [3.3.2] - 2026-04-15
 
 ### Added

@@ -11,6 +11,33 @@ import {
     MAX_IMPORT_SIZE_BYTES
 } from './utils/endpoint-io.js';
 
+/**
+ * Safe wrapper for chrome.runtime.sendMessage.
+ * Checks chrome.runtime.lastError to avoid "Unchecked runtime.lastError: No SW"
+ * warnings when the service worker is terminated (normal in Manifest V3).
+ * @param {object} message
+ * @returns {Promise<object|null>} response or null if the SW isn't available
+ */
+async function sendToSW(message) {
+    try {
+        const response = await chrome.runtime.sendMessage(message);
+        // Check lastError even when the promise resolved — MV3 can set both
+        if (chrome.runtime.lastError) {
+            Logger.warn('Background message error:', chrome.runtime.lastError.message);
+            return null;
+        }
+        return response;
+    } catch (error) {
+        // SW not running — normal in MV3 when popup opens before SW wakes
+        Logger.warn('Failed to reach background:', error.message);
+        if (chrome.runtime.lastError) {
+            // Reading it clears the "Unchecked" warning
+            Logger.warn('lastError:', chrome.runtime.lastError.message);
+        }
+        return null;
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     Logger.info('Popup loaded');
 
@@ -127,12 +154,12 @@ export async function handleConfirmSnooze() {
     const duration = parseInt(document.getElementById('snoozeDuration').value);
     try {
         showLoading('Snoozing notifications...');
-        const response = await chrome.runtime.sendMessage({
+        const response = await sendToSW({
             action: 'setSnooze',
             duration: duration
         });
 
-        if (response.success) {
+        if (response && response.success) {
             hideSnoozeModal();
             showSuccess(duration === 0 ? 'Notifications snoozed indefinitely' : `Notifications snoozed for ${duration} minutes`);
             await updateSnoozeStatus();
@@ -151,11 +178,11 @@ export async function handleConfirmSnooze() {
 export async function handleCancelSnooze() {
     try {
         showLoading('Canceling snooze...');
-        const response = await chrome.runtime.sendMessage({
+        const response = await sendToSW({
             action: 'clearSnooze'
         });
 
-        if (response.success) {
+        if (response && response.success) {
             await updateSnoozeStatus();
             showSuccess('Notifications no longer snoozed');
         } else {
@@ -172,11 +199,13 @@ export async function handleCancelSnooze() {
 // Update snooze status display
 export async function updateSnoozeStatus() {
     try {
-        const response = await chrome.runtime.sendMessage({
+        const response = await sendToSW({
             action: 'getSnoozeStatus'
         });
 
         Logger.info('updateSnoozeStatus received:', response);
+
+        if (!response) return;
 
         const snoozeStatus = document.getElementById('snoozeStatus');
         const snoozeRemaining = document.getElementById('snoozeRemaining');
@@ -214,11 +243,11 @@ function startSnoozeTimer() {
 
         // Check if snooze is still active
         try {
-            const response = await chrome.runtime.sendMessage({
+            const response = await sendToSW({
                 action: 'getSnoozeStatus'
             });
 
-            if (!response.isSnoozed) {
+            if (!response || !response.isSnoozed) {
                 clearInterval(timer);
             }
         } catch (_error) {
@@ -270,7 +299,7 @@ async function handleRefreshNow() {
         btn.innerHTML = '<span class="btn-icon">⏳</span> Checking...';
         btn.disabled = true;
 
-        const response = await chrome.runtime.sendMessage({ action: 'refreshNow' });
+        const response = await sendToSW({ action: 'refreshNow' });
 
         if (response && response.success) {
             showSuccess('Manual refresh completed');
@@ -486,7 +515,7 @@ async function handleToggleMonitoring() {
     const newState = !isEnabled;
 
     try {
-        const response = await chrome.runtime.sendMessage({
+        const response = await sendToSW({
             action: 'toggleEnabled',
             enabled: newState
         });
@@ -509,7 +538,7 @@ async function handleToggleMonitoring() {
 // Update status indicator
 async function updateStatus() {
     try {
-        const response = await chrome.runtime.sendMessage({ action: 'getStatus' });
+        const response = await sendToSW({ action: 'getStatus' });
 
         if (response) {
             const statusDot = document.querySelector('.status-dot');
