@@ -1,5 +1,6 @@
 import { validateEndpointUrl, validateEndpointName } from '../utils/validators.js';
 import * as Background from '../background.js';
+import * as snoozeService from '../utils/snooze-service.js';
 
 describe('Background Service Worker - High Priority Functions', () => {
   let mockStorage;
@@ -69,47 +70,6 @@ describe('Background Service Worker - High Priority Functions', () => {
       { name: 'session-id', value: 'session123' },
       { name: '__Secure-record-portal-session-id', value: 'portal456' }
     ]);
-  });
-
-  describe('getZendeskCookies()', () => {
-    test('should extract Zendesk auth cookies for a given domain', async () => {
-      const domain = 'cpanel.zendesk.com';
-
-      // Mock the cookie retrieval
-      chrome.cookies.getAll.mockResolvedValue([
-        { name: 'session-id', value: 'session123', domain },
-        { name: '__Secure-record-portal-session-id', value: 'portal456', domain },
-        { name: '_ga', value: 'analytics789', domain }
-      ]);
-
-      // Use the real getZendeskCookies
-      const authCookies = await Background.getZendeskCookies(domain);
-
-      expect(authCookies).toContain('session-id=session123');
-      expect(authCookies).toContain('__Secure-record-portal-session-id=portal456');
-      expect(authCookies).not.toContain('_ga');
-    });
-
-    test('should return empty string when no auth cookies found', async () => {
-      chrome.cookies.getAll.mockResolvedValue([
-        { name: '_ga', value: 'analytics789' },
-        { name: '_gid', value: 'analytics456' }
-      ]);
-
-      const authCookies = await Background.getZendeskCookies('cpanel.zendesk.com');
-
-      expect(authCookies).toBe('');
-    });
-
-    test('should handle cookie retrieval errors gracefully', async () => {
-      chrome.cookies.getAll.mockRejectedValue(new Error('Cookie access denied'));
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
-
-      const result = await Background.getZendeskCookies('cpanel.zendesk.com');
-      expect(result).toBe('');
-
-      consoleSpy.mockRestore();
-    });
   });
 
   describe('Endpoint Validation', () => {
@@ -218,25 +178,25 @@ describe('Background Service Worker - High Priority Functions', () => {
 
   describe('Snooze State Management', () => {
     test('should block notifications when snooze is active', async () => {
-      await Background.setSnooze(60);
-      const shouldNotify = !(await Background.isSnoozed());
+      await snoozeService.setSnooze(60);
+      const shouldNotify = !(await snoozeService.isSnoozed());
 
       expect(shouldNotify).toBe(false);
     });
 
     test('should allow notifications when snooze is cleared', async () => {
-      await Background.setSnooze(60);
-      await Background.clearSnooze();
-      const shouldNotify = !(await Background.isSnoozed());
+      await snoozeService.setSnooze(60);
+      await snoozeService.clearSnooze();
+      const shouldNotify = !(await snoozeService.isSnoozed());
 
       expect(shouldNotify).toBe(true);
     });
 
     test('should clear snooze when clearSnooze is called', async () => {
-      await Background.setSnooze(60);
-      await Background.clearSnooze();
+      await snoozeService.setSnooze(60);
+      await snoozeService.clearSnooze();
 
-      expect(await Background.isSnoozed()).toBe(false);
+      expect(await snoozeService.isSnoozed()).toBe(false);
     });
   });
 

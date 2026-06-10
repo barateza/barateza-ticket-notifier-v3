@@ -8,7 +8,7 @@ This is a Manifest V3 Chrome extension that monitors Zendesk ticket API endpoint
 
 **For end users** (non-developers):
 
-1. **[Download v3.3.3](https://github.com/barateza/barateza-ticket-notifier-v3/archive/refs/tags/v3.3.3.zip)** - Extract the ZIP file
+1. **[Download v3.4.0](https://github.com/barateza/barateza-ticket-notifier-v3/archive/refs/tags/v3.4.0.zip)** - Extract the ZIP file
 2. Open Chrome → `chrome://extensions/`
 3. Enable "Developer mode" (top right toggle)
 4. Click "Load unpacked" and select the extracted folder
@@ -59,7 +59,7 @@ Clone the repository and follow the Architecture sections below to understand th
 ### Authentication (No API Tokens)
 
 - Extension has `"cookies"` permission scoped to `*://*.zendesk.com/*`
-- `getZendeskCookies(domain)` filters for session/auth/CSRF cookies by name
+- `cookieService.getCookies(domain)` (from `utils/cookie-service.js`) retrieves Zendesk auth cookies
 - API requests include cookies in `Cookie` header AND `credentials: 'include'`
 - **Pattern**: Always extract domain from endpoint URL before requesting cookies
 
@@ -164,7 +164,7 @@ https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+group:amer+assig
 
 | File | Primary Purpose | Key Functions |
 |------|-----------------|----------------|
-| `background.js` | Monitoring loop & notifications | `checkAllEndpoints()`, `checkEndpoint()`, `getZendeskCookies()` |
+| `background.js` | Monitoring loop & notifications | `checkAllEndpoints()`, `checkEndpoint()`, `updateBadge()` |
 | `popup.js` | UI state & event binding | `loadSettings()`, `loadEndpoints()`, `handleSaveEndpoint()` |
 | `popup.html` | Layout & form elements | Modal for adding endpoints, settings checkboxes |
 | `offscreen.js` | Audio playback | `playAudio()` using Web Audio API |
@@ -219,7 +219,7 @@ The README contains status badges that require periodic updates:
 
 ### Static Badges (Manual Update Required)
 
-- **Test Count Badge**: Currently shows "68 passing". **Update this badge on every version bump or when test count changes:**
+- **Test Count Badge**: Currently shows "159 passing". **Update this badge on every version bump or when test count changes:**
   1. Run tests: `npm test`
   2. Note the total passing test count from the output
   3. Update `README.md` badge URL: Change `68%20passing` to `[NEW_COUNT]%20passing` in the tests badge URL
@@ -613,7 +613,21 @@ grep -r "PHASES.md\|COVERAGE_SETUP.md\|FINAL_REPORT.md\|RELEASE_TEST.md" . --inc
 
 ---
 
-**Last Updated**: February 1, 2026
+**Last Updated**: June 8, 2026
 **Documentation Status**: Consolidated to 4 core files
-**Current Version**: v3.3.3
-**Test Count**: 69 passing
+**Current Version**: v3.4.0
+**Test Count**: 159 passing
+
+## Agent skills
+
+### Issue tracker
+
+Issues live as GitHub issues on `barateza/barateza-ticket-notifier-v3`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Uses the default five-label vocabulary (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context repo (no CONTEXT.md or docs/adr/ yet). See `docs/agents/domain.md`.

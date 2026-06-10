@@ -33,7 +33,6 @@ describe('popup.js exported functions', () => {
 
     chrome.runtime.sendMessage.mockResolvedValue({
       isSnoozed: true,
-      isIndefiniteSnooze: true,
       remainingTime: 0
     });
 

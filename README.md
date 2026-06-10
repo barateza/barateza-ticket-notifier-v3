@@ -5,7 +5,7 @@ A Chrome extension that monitors Zendesk ticket endpoints and notifies you with 
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![Latest Release](https://img.shields.io/github/v/release/barateza/barateza-ticket-notifier-v3?style=flat-square)](https://github.com/barateza/barateza-ticket-notifier-v3/releases/latest)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-blue?style=flat-square)
-[![Tests Passing](https://img.shields.io/badge/tests-92%20passing-brightgreen?style=flat-square&logo=jest)](https://github.com/barateza/barateza-ticket-notifier-v3/tree/main/__tests__)
+[![Tests Passing](https://img.shields.io/badge/tests-159%20passing-brightgreen?style=flat-square&logo=jest)](https://github.com/barateza/barateza-ticket-notifier-v3/tree/main/__tests__)
 [![Code Coverage](https://github.com/barateza/barateza-ticket-notifier-v3/actions/workflows/coverage.yml/badge.svg)](https://github.com/barateza/barateza-ticket-notifier-v3/actions/workflows/coverage.yml)
 [![CodeQL](https://github.com/barateza/barateza-ticket-notifier-v3/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/barateza/barateza-ticket-notifier-v3/actions/workflows/github-code-scanning/codeql)
 [![Dependabot](https://img.shields.io/badge/dependabot-enabled-brightgreen?style=flat-square&logo=dependabot)](https://github.com/barateza/barateza-ticket-notifier-v3/security/dependabot)
@@ -18,7 +18,7 @@ A Chrome extension that monitors Zendesk ticket endpoints and notifies you with 
 
 ### Download & Install (2 minutes)
 
-1. **[Download v3.3.3](https://github.com/barateza/barateza-ticket-notifier-v3/releases/download/v3.3.3/barateza-ticket-notifier-3.3.3.zip)** - Extract the ZIP file to your computer
+1. **[Download v3.4.0](https://github.com/barateza/barateza-ticket-notifier-v3/releases/download/v3.4.0/barateza-ticket-notifier-3.4.0.zip)** - Extract the ZIP file to your computer
 2. **Open Chrome** and go to `chrome://extensions/`
 3. **Enable "Developer mode"** (toggle in the top right)
 4. **Click "Load unpacked"** and select the extracted folder

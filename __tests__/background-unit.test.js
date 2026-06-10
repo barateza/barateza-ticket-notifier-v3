@@ -4,6 +4,8 @@
  */
 
 import * as Background from '../background.js';
+import * as snoozeService from '../utils/snooze-service.js';
+import * as cookieService from '../utils/cookie-service.js';
 const alarmListeners = chrome.alarms.onAlarm.addListener.mock.calls.map(([listener]) => listener);
 
 describe('Background – Unit Tests', () => {
@@ -84,6 +86,8 @@ describe('Background – Unit Tests', () => {
             status: 200,
             json: async () => ({ count: 5 })
         });
+
+        cookieService.clearCache();
     });
 
     afterEach(async () => {
@@ -98,100 +102,9 @@ describe('Background – Unit Tests', () => {
         }
         jest.clearAllMocks();
         delete chrome.runtime.lastError;
-        await Background.clearSnooze();
+        await snoozeService.clearSnooze();
     });
 
-    // ─── Snooze Functions ───────────────────────────────────────────────────────
-
-    describe('setSnooze()', () => {
-        test('sets a finite snooze and creates alarm', async () => {
-            const result = await Background.setSnooze(30);
-
-            expect(result.success).toBe(true);
-            expect(result.endTime).toBeGreaterThan(Date.now());
-            expect(chrome.storage.local.set).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    snoozeState: expect.objectContaining({ duration: 30 })
-                })
-            );
-            expect(chrome.alarms.create).toHaveBeenCalledWith('snoozeEnd', expect.objectContaining({ delayInMinutes: 30 }));
-        });
-
-        test('sets an indefinite snooze (duration = 0) without alarm', async () => {
-            const result = await Background.setSnooze(0);
-
-            expect(result.success).toBe(true);
-            // No alarm for indefinite snooze
-            expect(chrome.alarms.create).not.toHaveBeenCalledWith('snoozeEnd', expect.anything());
-            expect(chrome.storage.local.set).toHaveBeenCalledWith(
-                expect.objectContaining({ snoozeState: expect.objectContaining({ duration: 0 }) })
-            );
-        });
-
-        test('updates badge after setting snooze', async () => {
-            // Simulate an active snooze for the badge update path
-            mockLocalStorage.snoozeState = { endTime: Date.now() + 3600000, duration: 60 };
-
-            await Background.setSnooze(60);
-
-            expect(chrome.action.setBadgeText).toHaveBeenCalled();
-        });
-    });
-
-    describe('clearSnooze()', () => {
-        test('removes snoozeState from storage and clears alarm', async () => {
-            mockLocalStorage.snoozeState = { endTime: Date.now() + 3600000, duration: 60 };
-
-            const result = await Background.clearSnooze();
-
-            expect(result.success).toBe(true);
-            expect(chrome.storage.local.remove).toHaveBeenCalledWith('snoozeState');
-            expect(chrome.alarms.clear).toHaveBeenCalledWith('snoozeEnd');
-        });
-    });
-
-    describe('isSnoozed()', () => {
-        test('returns true when snooze is active and not expired', async () => {
-            await Background.setSnooze(60);
-
-            const snoozed = await Background.isSnoozed();
-
-            expect(snoozed).toBe(true);
-        });
-
-        test('returns false when snooze has expired', async () => {
-            mockLocalStorage.snoozeState = { endTime: Date.now() - 1000, duration: 1 };
-
-            const snoozed = await Background.isSnoozed();
-
-            expect(snoozed).toBe(false);
-        });
-
-        test('returns false when no snooze state exists', async () => {
-            const snoozed = await Background.isSnoozed();
-
-            expect(snoozed).toBe(false);
-        });
-    });
-
-    describe('getRemainingSnoozeTime()', () => {
-        test('returns remaining minutes when snoozed', async () => {
-            await Background.setSnooze(30);
-
-            const remaining = await Background.getRemainingSnoozeTime();
-
-            expect(remaining).toBeGreaterThanOrEqual(29);
-            expect(remaining).toBeLessThanOrEqual(31);
-        });
-
-        test('returns 0 when not snoozed', async () => {
-            const remaining = await Background.getRemainingSnoozeTime();
-
-            expect(remaining).toBe(0);
-        });
-    });
-
-    // ─── Badge ──────────────────────────────────────────────────────────────────
 
     describe('updateBadge()', () => {
         test('shows ticket count badge when not snoozed and counts > 0', async () => {
@@ -212,7 +125,7 @@ describe('Background – Unit Tests', () => {
         });
 
         test('shows snooze badge when snoozed', async () => {
-            await Background.setSnooze(60);
+            await snoozeService.setSnooze(60);
             mockSessionStorage.endpointCounts = [[1, 3]];
 
             await Background.updateBadge();
@@ -222,108 +135,6 @@ describe('Background – Unit Tests', () => {
         });
     });
 
-    // ─── notifyNewTickets ────────────────────────────────────────────────────────
-
-    describe('notifyNewTickets()', () => {
-        const endpoint = {
-            id: 1,
-            name: 'My Tickets',
-            url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+assignee:me+status:open'
-        };
-
-        test('creates notification when notifications are enabled and not snoozed', async () => {
-            const settings = { soundEnabled: false, notificationEnabled: true };
-
-            await Background.notifyNewTickets('My Tickets', 3, 10, settings, endpoint);
-
-            expect(chrome.notifications.create).toHaveBeenCalledWith(
-                expect.stringContaining('ticket-notification-1'),
-                expect.objectContaining({ type: 'basic', title: expect.stringContaining('My Tickets') })
-            );
-        });
-
-        test('plays sound when soundEnabled is true and not snoozed', async () => {
-            const settings = { soundEnabled: true, notificationEnabled: false };
-
-            await Background.notifyNewTickets('My Tickets', 2, 7, settings, endpoint);
-
-            // playNotificationSound() routes through createOffscreen() — verify it was invoked
-            expect(chrome.offscreen.hasDocument).toHaveBeenCalled();
-        });
-
-        test('skips notification and sound when snoozed', async () => {
-            await Background.setSnooze(60);
-            const settings = { soundEnabled: true, notificationEnabled: true };
-
-            await Background.notifyNewTickets('My Tickets', 5, 15, settings, endpoint);
-
-            expect(chrome.notifications.create).not.toHaveBeenCalled();
-            expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
-        });
-
-        test('skips notification when notificationEnabled is false', async () => {
-            const settings = { soundEnabled: false, notificationEnabled: false };
-
-            await Background.notifyNewTickets('My Tickets', 1, 6, settings, endpoint);
-
-            expect(chrome.notifications.create).not.toHaveBeenCalled();
-        });
-    });
-
-    // ─── Offscreen / Sound ───────────────────────────────────────────────────────
-
-    describe('createOffscreen()', () => {
-        test('creates an offscreen document if none exists', async () => {
-            chrome.offscreen.hasDocument.mockResolvedValue(false);
-
-            await Background.createOffscreen();
-
-            expect(chrome.offscreen.createDocument).toHaveBeenCalledWith(
-                expect.objectContaining({ url: 'offscreen.html' })
-            );
-        });
-
-        test('skips creation when document already exists', async () => {
-            chrome.offscreen.hasDocument.mockResolvedValue(true);
-
-            await Background.createOffscreen();
-
-            expect(chrome.offscreen.createDocument).not.toHaveBeenCalled();
-        });
-
-        test('uses a single createDocument call during concurrent creation', async () => {
-            chrome.offscreen.hasDocument.mockResolvedValue(false);
-
-            await Promise.all([
-                Background.createOffscreen(),
-                Background.createOffscreen()
-            ]);
-
-            expect(chrome.offscreen.createDocument).toHaveBeenCalledTimes(1);
-        });
-    });
-
-    describe('playNotificationSound()', () => {
-        test('calls createOffscreen and sends play message', async () => {
-            await Background.playNotificationSound();
-
-            expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
-                expect.objectContaining({ play: expect.objectContaining({ type: 'beep' }) })
-            );
-        });
-
-        test('handles errors gracefully', async () => {
-            chrome.offscreen.hasDocument.mockRejectedValue(new Error('Offscreen API unavailable'));
-            const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
-
-            // Should not throw
-            await expect(Background.playNotificationSound()).resolves.not.toThrow();
-
-            consoleSpy.mockRestore();
-        });
-    });
-
-    // ─── checkAllEndpoints ───────────────────────────────────────────────────────
 
     describe('checkAllEndpoints()', () => {
         test('skips when there are no endpoints configured', async () => {

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.0] - 2026-06-08
+
+### Changed
+- **Architecture Decomposition**: Extracted 5 cohesive modules from `background.js` and `popup.js`, deepening the architecture and creating testable seams:
+  - **SnoozeService** (`utils/snooze-service.js`): Encapsulated snooze state (cache, storage persistence, alarm wiring) behind a 4-method interface, reducing 7 scattered touch points in background.js to a single import.
+  - **NotificationManager** (`utils/notification-manager.js`): Consolidated notification creation, sound playback, offscreen management, and URL mapping behind one `notify()` call.
+  - **CookieService** (`utils/cookie-service.js`): Centralised Zendesk cookie retrieval with in-memory caching and deduplication, eliminating duplicate logic between background.js and popup.js.
+  - **RateLimitService** (`utils/rate-limit-service.js`): Wrapped Retry-After parsing, backoff scheduling, and alarm management into a 3-method interface.
+  - **MessageRouter** (`utils/message-router.js`): Replaced the 7-branch switch statement in background.js with a handler registry, making each message handler independently testable.
+
+### Added
+- 5 new test files (cookie-service, message-router, notification-manager, rate-limit-service, snooze-service) with 45 new unit tests.
+- `docs/agents/` — Agent skills configuration for Matt Pocock's engineering skills (issue tracker, triage labels, domain doc layout).
+
+### Changed
+- `background.js` reduced from ~450 lines of inline logic to ~300 lines delegating to utility modules.
+- `popup.js` now uses `cookieService.getCookies()` instead of duplicating cookie filter logic.
+
 ## [3.3.3] - 2026-06-26
 
 ### Fixed

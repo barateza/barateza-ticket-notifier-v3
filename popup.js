@@ -3,6 +3,7 @@
 
 import { validateEndpointUrl, validateEndpoint } from './utils/validators.js';
 import Logger from './utils/logger.js';
+import * as cookieService from './utils/cookie-service.js';
 import {
     exportEndpoints,
     parseImportFile,
@@ -213,10 +214,10 @@ export async function updateSnoozeStatus() {
         if (response.isSnoozed) {
             Logger.info('Snooze is active, showing banner');
             snoozeStatus.classList.remove('hidden');
-            // Keep indefinite check first because it intentionally shares remainingTime=0.
-            if (response.isIndefiniteSnooze) {
+            // remainingTime === 0 means indefinite snooze
+            if (response.remainingTime === 0) {
                 snoozeRemaining.textContent = 'Until I turn back on';
-            } else if (response.remainingTime === 0) {
+            } else if (response.remainingTime === 1) {
                 snoozeRemaining.textContent = 'Less than 1 minute remaining';
             } else if (response.remainingTime === 1) {
                 snoozeRemaining.textContent = '1 minute remaining';
@@ -619,21 +620,8 @@ export async function testEndpoint(url) {
         const urlObj = new URL(url);
         const domain = urlObj.hostname;
 
-        // Get authentication cookies
-        const cookies = await chrome.cookies.getAll({
-            domain: domain
-        });
-
-        const cookieString = cookies
-            .filter(cookie =>
-                cookie.name.includes('session') ||
-                cookie.name.includes('auth') ||
-                cookie.name.includes('_zendesk') ||
-                cookie.name.includes('csrf') ||
-                cookie.name === '_help_center_session'
-            )
-            .map(cookie => `${cookie.name}=${cookie.value}`)
-            .join('; ');
+        // Get authentication cookies (cached internally by cookieService)
+        const cookieString = await cookieService.getCookies(domain);
 
         const response = await fetch(url, {
             method: 'GET',
