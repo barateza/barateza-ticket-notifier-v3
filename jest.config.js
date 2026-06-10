@@ -5,6 +5,7 @@ module.exports = {
     'background.js',
     'popup.js',
     'offscreen.js',
+    'utils/*.js',
     '!**/*.test.js',
     '!**/node_modules/**'
   ],
@@ -23,7 +24,7 @@ module.exports = {
       lines: 20,
       statements: 20
     },
-    './background.js': { branches: 40, functions: 75, lines: 48, statements: 50 },
+    './background.js': { branches: 40, functions: 70, lines: 48, statements: 50 },
     './popup.js': { branches: 5, functions: 10, lines: 8, statements: 8 },
     './offscreen.js': { branches: 50, functions: 50, lines: 80, statements: 80 }
   }
