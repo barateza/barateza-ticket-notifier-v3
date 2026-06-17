@@ -1,6 +1,6 @@
 {
   "name": "barateza-ticket-notifier",
-  "version": "3.4.1",
+  "version": "3.4.2",
   "description": "Zendesk ticket monitor Chrome extension with code coverage",
   "main": "background.js",
   "scripts": {
@@ -26,18 +26,14 @@
   "engines": {
     "node": ">=22"
   },
-  "overrides": {
-    "flatted": "3.4.2",
-    "picomatch": "4.0.4"
-  },
   "devDependencies": {
-    "@babel/preset-env": "^7.23.0",
+    "@babel/preset-env": "^7.29.7",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.58.2",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.1.5",
     "@types/node": "^25.3.3",
-    "babel-jest": "^30.2.0",
+    "babel-jest": "^30.4.1",
     "eslint": "^10.0.2",
     "eslint-plugin-jest": "^29.15.0",
     "globals": "^17.3.0",

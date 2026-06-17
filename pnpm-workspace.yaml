@@ -1,2 +1,9 @@
+# pnpm workspace config
+# See: https://pnpm.io/pnpm-workspace_yaml
+
 allowBuilds:
-  unrs-resolver: false
+  unrs-resolver: true
+overrides:
+  js-yaml: 4.2.0
+  flatted: 3.4.2
+  picomatch: 4.0.4

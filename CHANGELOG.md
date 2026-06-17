@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.2] - 2026-06-17
+
+### Fixed
+- **Security vulnerabilities in dev dependencies** (Dependabot #14, #24, #25):
+  - `@babel/core` updated to 7.29.7 (fixes CVE-2026-49356, low severity — arbitrary file read via sourceMappingURL)
+  - `@babel/plugin-transform-modules-systemjs` updated to 7.29.7 (fixes CVE-2026-44728, high severity — code injection when compiling malicious input)
+  - `js-yaml` overridden to 4.2.0 (fixes CVE-2026-53550, medium severity — DoS via quadratic-complexity in merge key handling)
+
 ## [3.4.1] - 2026-06-10
 
 ### Added
