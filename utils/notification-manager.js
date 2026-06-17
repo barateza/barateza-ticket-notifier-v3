@@ -12,7 +12,6 @@
 //   click handler        — chrome.notifications.onClicked lookup + navigate
 
 import Logger from './logger.js';
-import * as snoozeService from './snooze-service.js';
 import { getSession, setSession } from './storage-service.js';
 
 let creatingOffscreenPromise = null;
@@ -97,7 +96,7 @@ export function init() {
 
 /**
  * Send a notification for new ticket events.
- * Handles snooze gating, sound playback, notification creation,
+ * Handles sound playback, notification creation,
  * and URL mapping persistence.
  *
  * @param {object} opts
@@ -109,12 +108,6 @@ export function init() {
  * @param {object} opts.settings
  */
 export async function notify({ endpointId, endpointName, newTickets, totalCount, endpointUrl, settings }) {
-  // Check if notifications are snoozed (re-hydrates from storage on SW restart)
-  if (await snoozeService.isSnoozed()) {
-    Logger.info(`Notifications are snoozed - skipping notification for ${endpointName}`);
-    return;
-  }
-
   Logger.info(`New tickets detected: ${newTickets} new tickets in ${endpointName}`);
 
   // Play sound notification

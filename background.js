@@ -277,14 +277,21 @@ export async function checkEndpoint(endpoint, settings, retryCount = 0) {
     // Check if count increased compared to previous known count
     if (newCount > previousCount && previousCount >= 0) {
       const newTickets = newCount - previousCount;
-      await notificationManager.notify({
-        endpointId: endpoint.id,
-        endpointName: endpoint.name,
-        newTickets,
-        totalCount: newCount,
-        endpointUrl: endpoint.url,
-        settings
-      });
+
+      // Check snooze before notifying (gate lives here, not inside notify(),
+      // so notification-manager remains pure and doesn't need to import snooze-service)
+      if (!(await snoozeService.isSnoozed())) {
+        await notificationManager.notify({
+          endpointId: endpoint.id,
+          endpointName: endpoint.name,
+          newTickets,
+          totalCount: newCount,
+          endpointUrl: endpoint.url,
+          settings
+        });
+      } else {
+        Logger.info(`Snoozed — skipping notification for ${endpoint.name}`);
+      }
     }
 
     // Update stored count

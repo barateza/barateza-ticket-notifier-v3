@@ -4,7 +4,6 @@
  */
 
 import * as notificationManager from '../utils/notification-manager.js';
-import * as snoozeService from '../utils/snooze-service.js';
 
 describe('NotificationManager', () => {
     let mockLocalStorage;
@@ -70,9 +69,8 @@ describe('NotificationManager', () => {
         chrome.runtime.sendMessage.mockResolvedValue({ success: true });
     });
 
-    afterEach(async () => {
+    afterEach(() => {
         jest.clearAllMocks();
-        await snoozeService.clearSnooze();
     });
 
     const baseOpts = {
@@ -101,16 +99,6 @@ describe('NotificationManager', () => {
 
             // Routes through createOffscreen — verify offscreen was checked
             expect(chrome.offscreen.hasDocument).toHaveBeenCalled();
-        });
-
-        test('skips notification and sound when snoozed', async () => {
-            await snoozeService.setSnooze(60);
-            const opts = { ...baseOpts, settings: { soundEnabled: true, notificationEnabled: true } };
-
-            await notificationManager.notify(opts);
-
-            expect(chrome.notifications.create).not.toHaveBeenCalled();
-            expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
         });
 
         test('skips notification when notificationEnabled is false', async () => {
