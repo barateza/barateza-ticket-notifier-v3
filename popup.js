@@ -20,6 +20,7 @@ import {
     startSnoozeTimer,
     stopSnoozeTimer
 } from './popup-snooze.js';
+import { loadSettings, saveSettings } from './popup-settings.js';
 
 // Re-export snooze functions for backward compatibility with tests
 export {
@@ -29,7 +30,9 @@ export {
     handleCancelSnooze,
     updateSnoozeStatus,
     startSnoozeTimer,
-    stopSnoozeTimer
+    stopSnoozeTimer,
+    loadSettings,
+    saveSettings
 };
 
 /**
@@ -222,69 +225,6 @@ async function handleRefreshNow() {
 }
 
 // Load and display current settings
-export async function loadSettings() {
-    try {
-        const { settings } = await chrome.storage.local.get(['settings']);
-
-        if (settings) {
-            Logger.setDebugMode(settings.debugMode);
-        }
-
-        if (settings) {
-            document.getElementById('soundEnabled').checked = settings.soundEnabled !== false;
-            document.getElementById('notificationEnabled').checked = settings.notificationEnabled !== false;
-            document.getElementById('checkInterval').value = settings.checkInterval || 1;
-            document.getElementById('darkMode').checked = settings.darkMode === true;
-            document.getElementById('debugMode').checked = settings.debugMode === true;
-
-            // Apply dark mode
-            if (settings.darkMode) {
-                document.body.classList.add('dark-mode');
-            } else {
-                document.body.classList.remove('dark-mode');
-            }
-        }
-    } catch (error) {
-        Logger.error('Error loading settings:', error);
-        showError('Failed to load settings');
-    }
-}
-
-// Save settings to storage
-export async function saveSettings() {
-    try {
-        const settings = {
-            soundEnabled: document.getElementById('soundEnabled').checked,
-            notificationEnabled: document.getElementById('notificationEnabled').checked,
-            checkInterval: parseInt(document.getElementById('checkInterval').value),
-            darkMode: document.getElementById('darkMode').checked,
-            debugMode: document.getElementById('debugMode').checked
-        };
-
-        await chrome.storage.local.set({ settings });
-        Logger.info('Settings saved:', settings);
-
-        // Apply dark mode
-        if (settings.darkMode) {
-            document.body.classList.add('dark-mode');
-        } else {
-            document.body.classList.remove('dark-mode');
-        }
-
-        // Always update alarm interval to match new setting (minimum 1 minute)
-        const interval = Math.max(1, settings.checkInterval);
-        await chrome.alarms.clear('ticketCheck');
-        await chrome.alarms.create('ticketCheck', {
-            periodInMinutes: interval
-        });
-        Logger.info(`Alarm interval updated to ${interval} minutes`);
-
-    } catch (error) {
-        Logger.error('Error saving settings:', error);
-        showError('Failed to save settings');
-    }
-}
-
 // Load and display endpoints
 export async function loadEndpoints() {
     try {

@@ -395,6 +395,16 @@ router.register('getSnoozeStatus', async (request, sendResponse) => {
   });
 });
 
+router.register('updateInterval', async (request, sendResponse) => {
+  const interval = Math.max(1, request.interval);
+  await chrome.alarms.clear('ticketCheck');
+  await chrome.alarms.create('ticketCheck', {
+    periodInMinutes: interval
+  });
+  Logger.info(`Alarm interval updated to ${interval} minutes`);
+  sendResponse({ success: true });
+});
+
 // Wire the router
 chrome.runtime.onMessage.addListener(router.createListener());
 
