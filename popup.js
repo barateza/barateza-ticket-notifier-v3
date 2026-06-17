@@ -11,6 +11,26 @@ import {
     prepareEndpointsForImport,
     MAX_IMPORT_SIZE_BYTES
 } from './utils/endpoint-io.js';
+import {
+    showSnoozeModal,
+    hideSnoozeModal,
+    handleConfirmSnooze,
+    handleCancelSnooze,
+    updateSnoozeStatus,
+    startSnoozeTimer,
+    stopSnoozeTimer
+} from './popup-snooze.js';
+
+// Re-export snooze functions for backward compatibility with tests
+export {
+    showSnoozeModal,
+    hideSnoozeModal,
+    handleConfirmSnooze,
+    handleCancelSnooze,
+    updateSnoozeStatus,
+    startSnoozeTimer,
+    stopSnoozeTimer
+};
 
 /**
  * Safe wrapper for chrome.runtime.sendMessage.
@@ -19,7 +39,7 @@ import {
  * @param {object} message
  * @returns {Promise<object|null>} response or null if the SW isn't available
  */
-async function sendToSW(message) {
+export async function sendToSW(message) {
     try {
         const response = await chrome.runtime.sendMessage(message);
         // Check lastError even when the promise resolved — MV3 can set both
@@ -140,123 +160,8 @@ function setupEventListeners() {
 }
 
 // Show snooze modal
-function showSnoozeModal() {
-    document.getElementById('snoozeModal').classList.remove('hidden');
-    document.getElementById('snoozeDuration').focus();
-}
-
-// Hide snooze modal
-function hideSnoozeModal() {
-    document.getElementById('snoozeModal').classList.add('hidden');
-}
-
-// Handle confirm snooze
-export async function handleConfirmSnooze() {
-    const duration = parseInt(document.getElementById('snoozeDuration').value);
-    try {
-        showLoading('Snoozing notifications...');
-        const response = await sendToSW({
-            action: 'setSnooze',
-            duration: duration
-        });
-
-        if (response && response.success) {
-            hideSnoozeModal();
-            showSuccess(duration === 0 ? 'Notifications snoozed indefinitely' : `Notifications snoozed for ${duration} minutes`);
-            await updateSnoozeStatus();
-        } else {
-            showError('Failed to snooze notifications');
-        }
-    } catch (error) {
-        Logger.error('Error snoozing notifications:', error);
-        showError('Failed to snooze notifications');
-    } finally {
-        hideLoading();
-    }
-}
-
-// Handle cancel snooze
-export async function handleCancelSnooze() {
-    try {
-        showLoading('Canceling snooze...');
-        const response = await sendToSW({
-            action: 'clearSnooze'
-        });
-
-        if (response && response.success) {
-            await updateSnoozeStatus();
-            showSuccess('Notifications no longer snoozed');
-        } else {
-            showError('Failed to cancel snooze');
-        }
-    } catch (error) {
-        Logger.error('Error canceling snooze:', error);
-        showError('Failed to cancel snooze');
-    } finally {
-        hideLoading();
-    }
-}
-
-// Update snooze status display
-export async function updateSnoozeStatus() {
-    try {
-        const response = await sendToSW({
-            action: 'getSnoozeStatus'
-        });
-
-        Logger.info('updateSnoozeStatus received:', response);
-
-        if (!response) return;
-
-        const snoozeStatus = document.getElementById('snoozeStatus');
-        const snoozeRemaining = document.getElementById('snoozeRemaining');
-
-        if (response.isSnoozed) {
-            Logger.info('Snooze is active, showing banner');
-            snoozeStatus.classList.remove('hidden');
-            // remainingTime === 0 means indefinite snooze
-            if (response.remainingTime === 0) {
-                snoozeRemaining.textContent = 'Until I turn back on';
-            } else if (response.remainingTime === 1) {
-                snoozeRemaining.textContent = 'Less than 1 minute remaining';
-            } else if (response.remainingTime < 60) {
-                snoozeRemaining.textContent = `${response.remainingTime} minutes remaining`;
-            } else {
-                const hours = Math.floor(response.remainingTime / 60);
-                const minutes = response.remainingTime % 60;
-                snoozeRemaining.textContent = `${hours}h ${minutes}m remaining`;
-            }
-        } else {
-            Logger.info('Snooze is not active, hiding banner');
-            snoozeStatus.classList.add('hidden');
-        }
-    } catch (error) {
-        Logger.error('Error getting snooze status:', error);
-    }
-}
-
-// Start snooze timer to update remaining time
-function startSnoozeTimer() {
-    const timer = setInterval(async () => {
-        await updateSnoozeStatus();
-
-        // Check if snooze is still active
-        try {
-            const response = await sendToSW({
-                action: 'getSnoozeStatus'
-            });
-
-            if (!response || !response.isSnoozed) {
-                clearInterval(timer);
-            }
-        } catch (_error) {
-            clearInterval(timer);
-        }
-    }, 60000); // Update every minute
-}
-
 // Show loading overlay
-function showLoading(message = 'Loading...') {
+export function showLoading(message = 'Loading...') {
     const overlay = document.getElementById('loadingOverlay');
     const loadingContent = overlay.querySelector('.loading-content');
     loadingContent.querySelector('p').textContent = message;
@@ -264,7 +169,7 @@ function showLoading(message = 'Loading...') {
 }
 
 // Hide loading overlay
-function hideLoading() {
+export function hideLoading() {
     document.getElementById('loadingOverlay').classList.add('hidden');
 }
 
@@ -847,11 +752,11 @@ export async function handleImportFileSelected(event) {
     }
 }
 
-function showError(message) {
+export function showError(message) {
     showMessage(message, 'error');
 }
 
-function showSuccess(message) {
+export function showSuccess(message) {
     showMessage(message, 'success');
 }
 
