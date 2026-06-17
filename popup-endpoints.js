@@ -14,7 +14,7 @@ import {
     prepareEndpointsForImport,
     MAX_IMPORT_SIZE_BYTES
 } from './utils/endpoint-io.js';
-import { showLoading, hideLoading, showSuccess, showError } from './popup.js';
+import { showLoading, hideLoading, showSuccess, showError } from './popup-utils.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

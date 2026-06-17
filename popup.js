@@ -3,6 +3,12 @@
 
 import Logger from './utils/logger.js';
 import {
+    sendToSW,
+    hideLoading,
+    showError,
+    showSuccess
+} from './popup-utils.js';
+import {
     showSnoozeModal,
     hideSnoozeModal,
     handleConfirmSnooze,
@@ -12,6 +18,10 @@ import {
     stopSnoozeTimer
 } from './popup-snooze.js';
 import { loadSettings, saveSettings } from './popup-settings.js';
+import {
+    checkForUpdates,
+    isNewerVersion
+} from './popup-updates.js';
 import {
     loadEndpoints,
     handleTestEndpoint,
@@ -49,35 +59,104 @@ export {
     handleSaveEndpoint,
     toggleEndpoint,
     deleteEndpoint,
-    reindexEndpointElements
+    reindexEndpointElements,
+    checkForUpdates,
+    isNewerVersion
 };
 
-/**
- * Safe wrapper for chrome.runtime.sendMessage.
- * Checks chrome.runtime.lastError to avoid "Unchecked runtime.lastError: No SW"
- * warnings when the service worker is terminated (normal in Manifest V3).
- * @param {object} message
- * @returns {Promise<object|null>} response or null if the SW isn't available
- */
-export async function sendToSW(message) {
+// ─── Manual Refresh ────────────────────────────────────────────────────────────
+
+async function handleRefreshNow() {
+    const btn = document.getElementById('refreshBtn');
+    const originalText = btn.innerHTML;
+
     try {
-        const response = await chrome.runtime.sendMessage(message);
-        // Check lastError even when the promise resolved — MV3 can set both
-        if (chrome.runtime.lastError) {
-            Logger.warn('Background message error:', chrome.runtime.lastError.message);
-            return null;
+        btn.innerHTML = '<span class="btn-icon">⏳</span> Checking...';
+        btn.disabled = true;
+
+        const response = await sendToSW({ action: 'refreshNow' });
+
+        if (response && response.success) {
+            showSuccess('Manual refresh completed');
+            await updateStatus();
+        } else {
+            showError(response.error || 'Refresh failed');
         }
-        return response;
     } catch (error) {
-        // SW not running — normal in MV3 when popup opens before SW wakes
-        Logger.warn('Failed to reach background:', error.message);
-        if (chrome.runtime.lastError) {
-            // Reading it clears the "Unchecked" warning
-            Logger.warn('lastError:', chrome.runtime.lastError.message);
-        }
-        return null;
+        Logger.error('Error during refresh:', error);
+        showError('Refresh failed');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        updateLastCheckTime();
     }
 }
+
+// ─── Monitoring Toggle ─────────────────────────────────────────────────────────
+
+async function handleToggleMonitoring() {
+    const btn = document.getElementById('toggleBtn');
+    const isEnabled = btn.dataset.enabled === 'true';
+    const newState = !isEnabled;
+
+    try {
+        const response = await sendToSW({
+            action: 'toggleEnabled',
+            enabled: newState
+        });
+
+        if (response && response.success) {
+            btn.dataset.enabled = newState.toString();
+            btn.innerHTML = newState ?
+                '<span class="btn-icon">⏸️</span> Pause' :
+                '<span class="btn-icon">▶️</span> Resume';
+
+            await updateStatus();
+            showSuccess(`Monitoring ${newState ? 'resumed' : 'paused'}`);
+        }
+    } catch (error) {
+        Logger.error('Error toggling monitoring:', error);
+        showError('Failed to toggle monitoring');
+    }
+}
+
+// ─── Status Display ────────────────────────────────────────────────────────────
+
+async function updateStatus() {
+    try {
+        const response = await sendToSW({ action: 'getStatus' });
+
+        if (response) {
+            const statusDot = document.querySelector('.status-dot');
+            const statusText = document.getElementById('statusText');
+            const toggleBtn = document.getElementById('toggleBtn');
+
+            if (response.enabled) {
+                statusDot.classList.remove('paused');
+                statusText.textContent = 'Monitoring';
+                toggleBtn.innerHTML = '<span class="btn-icon">⏸️</span> Pause';
+                toggleBtn.dataset.enabled = 'true';
+            } else {
+                statusDot.classList.add('paused');
+                statusText.textContent = 'Paused';
+                toggleBtn.innerHTML = '<span class="btn-icon">▶️</span> Resume';
+                toggleBtn.dataset.enabled = 'false';
+            }
+        }
+    } catch (error) {
+        Logger.error('Error updating status:', error);
+    }
+}
+
+// ─── Last Check Time ───────────────────────────────────────────────────────────
+
+function updateLastCheckTime() {
+    const lastCheckElement = document.getElementById('lastCheck');
+    const now = new Date();
+    lastCheckElement.textContent = `Last check: ${now.toLocaleTimeString()}`;
+}
+
+// ─── Initialization ────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', async () => {
     Logger.info('Popup loaded');
@@ -177,197 +256,6 @@ function setupEventListeners() {
             return;
         }
     });
-}
-
-// Show snooze modal
-// Show loading overlay
-export function showLoading(message = 'Loading...') {
-    const overlay = document.getElementById('loadingOverlay');
-    const loadingContent = overlay.querySelector('.loading-content');
-    loadingContent.querySelector('p').textContent = message;
-    overlay.classList.remove('hidden');
-}
-
-// Hide loading overlay
-export function hideLoading() {
-    document.getElementById('loadingOverlay').classList.add('hidden');
-}
-
-// Handle endpoint test
-// Handle refresh now button with debounce
-async function handleRefreshNow() {
-    const btn = document.getElementById('refreshBtn');
-    const originalText = btn.innerHTML;
-
-    try {
-        btn.innerHTML = '<span class="btn-icon">⏳</span> Checking...';
-        btn.disabled = true;
-
-        const response = await sendToSW({ action: 'refreshNow' });
-
-        if (response && response.success) {
-            showSuccess('Manual refresh completed');
-            await updateStatus();
-        } else {
-            showError(response.error || 'Refresh failed');
-        }
-    } catch (error) {
-        Logger.error('Error during refresh:', error);
-        showError('Refresh failed');
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        updateLastCheckTime();
-    }
-}
-
-// Load and display current settings
-// Load and display endpoints
-// Handle toggle monitoring button
-async function handleToggleMonitoring() {
-    const btn = document.getElementById('toggleBtn');
-    const isEnabled = btn.dataset.enabled === 'true';
-    const newState = !isEnabled;
-
-    try {
-        const response = await sendToSW({
-            action: 'toggleEnabled',
-            enabled: newState
-        });
-
-        if (response && response.success) {
-            btn.dataset.enabled = newState.toString();
-            btn.innerHTML = newState ?
-                '<span class="btn-icon">⏸️</span> Pause' :
-                '<span class="btn-icon">▶️</span> Resume';
-
-            await updateStatus();
-            showSuccess(`Monitoring ${newState ? 'resumed' : 'paused'}`);
-        }
-    } catch (error) {
-        Logger.error('Error toggling monitoring:', error);
-        showError('Failed to toggle monitoring');
-    }
-}
-
-// Update status indicator
-async function updateStatus() {
-    try {
-        const response = await sendToSW({ action: 'getStatus' });
-
-        if (response) {
-            const statusDot = document.querySelector('.status-dot');
-            const statusText = document.getElementById('statusText');
-            const toggleBtn = document.getElementById('toggleBtn');
-
-            if (response.enabled) {
-                statusDot.classList.remove('paused');
-                statusText.textContent = 'Monitoring';
-                toggleBtn.innerHTML = '<span class="btn-icon">⏸️</span> Pause';
-                toggleBtn.dataset.enabled = 'true';
-            } else {
-                statusDot.classList.add('paused');
-                statusText.textContent = 'Paused';
-                toggleBtn.innerHTML = '<span class="btn-icon">▶️</span> Resume';
-                toggleBtn.dataset.enabled = 'false';
-            }
-        }
-    } catch (error) {
-        Logger.error('Error updating status:', error);
-    }
-}
-
-// Show add endpoint modal
-// Update last check time display
-function updateLastCheckTime() {
-    const lastCheckElement = document.getElementById('lastCheck');
-    const now = new Date();
-    lastCheckElement.textContent = `Last check: ${now.toLocaleTimeString()}`;
-}
-
-/**
- * Check for updates on GitHub
- */
-async function checkForUpdates() {
-    try {
-        const manifest = chrome.runtime.getManifest();
-        const currentVersion = manifest.version;
-
-        const response = await fetch('https://api.github.com/repos/barateza/barateza-ticket-notifier-v3/releases/latest');
-        if (!response.ok) {
-            throw new Error(`GitHub API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const latestVersion = data.tag_name.replace(/^v/, '');
-
-        if (isNewerVersion(currentVersion, latestVersion)) {
-            const updateStatus = document.getElementById('updateStatus');
-            updateStatus.textContent = `Update available: v${latestVersion}`;
-            updateStatus.href = 'https://github.com/barateza/barateza-ticket-notifier-v3/releases/latest';
-            updateStatus.classList.remove('hidden');
-            updateStatus.title = `Update available: v${latestVersion}. Click to open releases page.`;
-
-            // Add click listener to use chrome.tabs API for reliable new tab opening
-            updateStatus.addEventListener('click', (e) => {
-                e.preventDefault();
-                chrome.tabs.create({ url: updateStatus.href });
-            });
-        }
-    } catch (error) {
-        Logger.error('Failed to check for updates:', error);
-    }
-}
-
-/**
- * Compare two semver strings
- * @returns {boolean} True if latest is newer than current
- */
-function isNewerVersion(current, latest) {
-    const v1 = current.split('.').map(Number);
-    const v2 = latest.split('.').map(Number);
-
-    for (let i = 0; i < 3; i++) {
-        const n1 = v1[i] || 0;
-        const n2 = v2[i] || 0;
-        if (n2 > n1) return true;
-        if (n1 > n2) return false;
-    }
-    return false;
-}
-
-// Utility functions
-
-export function showError(message) {
-    showMessage(message, 'error');
-}
-
-export function showSuccess(message) {
-    showMessage(message, 'success');
-}
-
-function showMessage(message, type) {
-    // Remove existing messages
-    const existing = document.querySelector('.error, .success');
-    if (existing) {
-        existing.remove();
-    }
-
-    // Create new message
-    const div = document.createElement('div');
-    div.className = type;
-    div.textContent = message;
-
-    // Insert at top of first section
-    const firstSection = document.querySelector('.section');
-    firstSection.insertBefore(div, firstSection.firstChild);
-
-    // Auto-remove after 3 seconds
-    setTimeout(() => {
-        if (div.parentNode) {
-            div.remove();
-        }
-    }, 3000);
 }
 
 Logger.info('Popup script loaded');

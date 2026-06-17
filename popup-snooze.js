@@ -8,7 +8,7 @@
 // ───────────────────────────────────────────────────────────────────────────────
 
 import Logger from './utils/logger.js';
-import { sendToSW, showLoading, hideLoading, showSuccess, showError } from './popup.js';
+import { sendToSW, showLoading, hideLoading, showSuccess, showError } from './popup-utils.js';
 
 let snoozeTimer = null;
 

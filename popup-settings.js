@@ -6,7 +6,7 @@
 // ───────────────────────────────────────────────────────────────────────────────
 
 import Logger from './utils/logger.js';
-import { sendToSW, showError } from './popup.js';
+import { sendToSW, showError } from './popup-utils.js';
 import { setLocal } from './utils/storage-service.js';
 
 function applyDarkMode(enabled) {
