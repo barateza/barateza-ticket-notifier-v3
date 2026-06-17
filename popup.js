@@ -1,16 +1,7 @@
 // Zendesk Ticket Monitor - Popup Script
 // Handles user interface interactions and settings management
 
-import { validateEndpointUrl, validateEndpoint } from './utils/validators.js';
 import Logger from './utils/logger.js';
-import * as cookieService from './utils/cookie-service.js';
-import {
-    exportEndpoints,
-    parseImportFile,
-    validateImportedEndpoints,
-    prepareEndpointsForImport,
-    MAX_IMPORT_SIZE_BYTES
-} from './utils/endpoint-io.js';
 import {
     showSnoozeModal,
     hideSnoozeModal,
@@ -21,8 +12,22 @@ import {
     stopSnoozeTimer
 } from './popup-snooze.js';
 import { loadSettings, saveSettings } from './popup-settings.js';
+import {
+    loadEndpoints,
+    handleTestEndpoint,
+    testEndpoint,
+    handleExportEndpoints,
+    handleImportEndpoints,
+    handleImportFileSelected,
+    showAddEndpointModal,
+    hideAddEndpointModal,
+    handleSaveEndpoint,
+    toggleEndpoint,
+    deleteEndpoint,
+    reindexEndpointElements
+} from './popup-endpoints.js';
 
-// Re-export snooze functions for backward compatibility with tests
+// Re-export sub-module functions for backward compatibility with tests
 export {
     showSnoozeModal,
     hideSnoozeModal,
@@ -32,7 +37,19 @@ export {
     startSnoozeTimer,
     stopSnoozeTimer,
     loadSettings,
-    saveSettings
+    saveSettings,
+    loadEndpoints,
+    handleTestEndpoint,
+    testEndpoint,
+    handleExportEndpoints,
+    handleImportEndpoints,
+    handleImportFileSelected,
+    showAddEndpointModal,
+    hideAddEndpointModal,
+    handleSaveEndpoint,
+    toggleEndpoint,
+    deleteEndpoint,
+    reindexEndpointElements
 };
 
 /**
@@ -177,26 +194,6 @@ export function hideLoading() {
 }
 
 // Handle endpoint test
-async function handleTestEndpoint() {
-    const url = document.getElementById('endpointUrl').value.trim();
-
-    const validation = validateEndpointUrl(url);
-    if (!validation.valid) {
-        showError(validation.error);
-        return;
-    }
-
-    showLoading('Testing endpoint connection...');
-    const testResult = await testEndpoint(url);
-    hideLoading();
-
-    if (testResult.success) {
-        showSuccess(testResult.message);
-    } else {
-        showError(testResult.message);
-    }
-}
-
 // Handle refresh now button with debounce
 async function handleRefreshNow() {
     const btn = document.getElementById('refreshBtn');
@@ -226,132 +223,6 @@ async function handleRefreshNow() {
 
 // Load and display current settings
 // Load and display endpoints
-export async function loadEndpoints() {
-    try {
-        const { endpoints } = await chrome.storage.local.get(['endpoints']);
-        const endpointsList = document.getElementById('endpointsList');
-
-        if (!endpoints || endpoints.length === 0) {
-            endpointsList.innerHTML = '<div class="error">No endpoints configured</div>';
-            return;
-        }
-
-        const fragment = document.createDocumentFragment();
-        endpoints.forEach((endpoint, index) => {
-            fragment.appendChild(createEndpointElement(endpoint, index));
-        });
-        endpointsList.replaceChildren(fragment);
-
-    } catch (error) {
-        Logger.error('Error loading endpoints:', error);
-        showError('Failed to load endpoints');
-    }
-}
-
-// Create DOM element for an endpoint
-function createEndpointElement(endpoint, index) {
-    const div = document.createElement('div');
-    div.className = 'endpoint-item';
-    div.dataset.index = String(index);
-    div.dataset.endpointId = String(endpoint.id);
-
-    div.innerHTML = `
-        <div class="endpoint-info">
-            <div class="endpoint-name">${escapeHtml(endpoint.name)}</div>
-            <div class="endpoint-url">${escapeHtml(endpoint.url)}</div>
-            <div class="endpoint-status ${endpoint.enabled ? 'active' : 'inactive'}">
-                ${endpoint.enabled ? '● Active' : '○ Inactive'}
-            </div>
-        </div>
-        <div class="endpoint-actions">
-            <button class="btn btn-secondary toggle-endpoint-btn" data-index="${index}">
-                ${endpoint.enabled ? 'Disable' : 'Enable'}
-            </button>
-            <button class="btn btn-danger delete-endpoint-btn" data-index="${index}">
-                Delete
-            </button>
-        </div>
-    `;
-
-    return div;
-}
-
-/**
- * Re-index endpoint row/button data-index attributes after row deletions
- * so delegated click handlers continue mapping DOM rows to storage array indexes.
- * @param {HTMLElement} container
- */
-function reindexEndpointElements(container) {
-    const items = container.querySelectorAll('.endpoint-item');
-    items.forEach((item, index) => {
-        item.dataset.index = String(index);
-        const toggleBtn = item.querySelector('.toggle-endpoint-btn');
-        const deleteBtn = item.querySelector('.delete-endpoint-btn');
-        if (toggleBtn) toggleBtn.dataset.index = String(index);
-        if (deleteBtn) deleteBtn.dataset.index = String(index);
-    });
-}
-
-// Toggle endpoint enabled/disabled
-async function toggleEndpoint(index) {
-    try {
-        const { endpoints } = await chrome.storage.local.get(['endpoints']);
-
-        if (endpoints && endpoints[index]) {
-            endpoints[index].enabled = !endpoints[index].enabled;
-            const saved = await saveEndpoints(endpoints);
-            if (saved) {
-                const endpointsList = document.getElementById('endpointsList');
-                const currentNode = endpointsList.querySelector(`.endpoint-item[data-index="${index}"]`);
-                const updatedNode = createEndpointElement(endpoints[index], index);
-                if (currentNode) {
-                    currentNode.replaceWith(updatedNode);
-                } else {
-                    await loadEndpoints();
-                }
-                showSuccess(`Endpoint ${endpoints[index].enabled ? 'enabled' : 'disabled'}`);
-            }
-        }
-    } catch (error) {
-        Logger.error('Error toggling endpoint:', error);
-        showError('Failed to toggle endpoint');
-    }
-}
-
-// Delete an endpoint
-async function deleteEndpoint(index) {
-    if (!confirm('Are you sure you want to delete this endpoint?')) {
-        return;
-    }
-
-    try {
-        const { endpoints } = await chrome.storage.local.get(['endpoints']);
-
-        if (endpoints && endpoints[index]) {
-            endpoints.splice(index, 1);
-            const saved = await saveEndpoints(endpoints);
-            if (saved) {
-                const endpointsList = document.getElementById('endpointsList');
-                const currentNode = endpointsList.querySelector(`.endpoint-item[data-index="${index}"]`);
-                if (currentNode) {
-                    currentNode.remove();
-                    if (endpoints.length === 0) {
-                        endpointsList.innerHTML = '<div class="error">No endpoints configured</div>';
-                    } else {
-                        reindexEndpointElements(endpointsList);
-                    }
-                } else {
-                    await loadEndpoints();
-                }
-                showSuccess('Endpoint deleted');
-            }
-        }
-    } catch (error) {
-        Logger.error('Error deleting endpoint:', error);
-        showError('Failed to delete endpoint');
-    }
-}
-
 // Handle toggle monitoring button
 async function handleToggleMonitoring() {
     const btn = document.getElementById('toggleBtn');
@@ -407,100 +278,6 @@ async function updateStatus() {
 }
 
 // Show add endpoint modal
-function showAddEndpointModal() {
-    document.getElementById('addEndpointModal').classList.remove('hidden');
-    document.getElementById('endpointName').focus();
-}
-
-// Hide add endpoint modal
-function hideAddEndpointModal() {
-    document.getElementById('addEndpointModal').classList.add('hidden');
-    document.getElementById('endpointName').value = '';
-    document.getElementById('endpointUrl').value = '';
-}
-
-// Handle save endpoint
-async function handleSaveEndpoint() {
-    const name = document.getElementById('endpointName').value.trim();
-    const url = document.getElementById('endpointUrl').value.trim();
-
-    try {
-        const { endpoints = [] } = await chrome.storage.local.get(['endpoints']);
-
-        // Validate endpoint
-        const validation = validateEndpoint({ name, url }, endpoints);
-        if (!validation.valid) {
-            // Show first error
-            showError(validation.errors[0]);
-            return;
-        }
-
-        const newEndpoint = {
-            id: Date.now(),
-            name: name,
-            url: url,
-            enabled: true,
-            createdAt: Date.now()
-        };
-
-        endpoints.push(newEndpoint);
-        const saved = await saveEndpoints(endpoints);
-        if (saved) {
-            hideAddEndpointModal();
-            await loadEndpoints();
-            showSuccess('Endpoint added successfully');
-        }
-
-    } catch (error) {
-        Logger.error('Error saving endpoint:', error);
-        showError('Failed to save endpoint');
-    }
-}
-
-// Test endpoint connection
-export async function testEndpoint(url) {
-    try {
-        const urlObj = new URL(url);
-        const domain = urlObj.hostname;
-
-        // Get authentication cookies (cached internally by cookieService)
-        const cookieString = await cookieService.getCookies(domain);
-
-        const response = await fetch(url, {
-            method: 'GET',
-            credentials: 'include',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'Cookie': cookieString
-            },
-            signal: AbortSignal.timeout(10000)
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-
-        if (typeof data.count === 'undefined') {
-            throw new Error('Invalid API response format');
-        }
-
-        return {
-            success: true,
-            count: data.count,
-            message: `Success: Found ${data.count} tickets`
-        };
-    } catch (error) {
-        Logger.error('Endpoint test error:', error);
-        return {
-            success: false,
-            message: error.message || 'Failed to connect to endpoint'
-        };
-    }
-}
-
 // Update last check time display
 function updateLastCheckTime() {
     const lastCheckElement = document.getElementById('lastCheck');
@@ -560,137 +337,6 @@ function isNewerVersion(current, latest) {
 }
 
 // Utility functions
-function escapeHtml(text) {
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return text.replace(/[&<>"']/g, (m) => map[m]);
-}
-
-async function saveEndpoints(endpoints) {
-    try {
-        await chrome.storage.local.set({ endpoints });
-        Logger.info('Endpoints saved successfully:', endpoints.length, 'endpoints');
-        return true;
-    } catch (error) {
-        Logger.error('Failed to save endpoints:', error);
-        showError('Failed to save endpoints. Please try again.');
-        return false;
-    }
-}
-
-// ─── Import / Export ──────────────────────────────────────────────────────────
-
-// Export all endpoints to a downloadable JSON file.
-export async function handleExportEndpoints() {
-    try {
-        const { endpoints } = await chrome.storage.local.get(['endpoints']);
-
-        if (!endpoints || endpoints.length === 0) {
-            showError('No endpoints to export.');
-            return;
-        }
-
-        const manifest = chrome.runtime.getManifest();
-        const json = exportEndpoints(endpoints, manifest.version);
-
-        // Generate a dated filename
-        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-        const filename = `zendesk-endpoints-${today}.json`;
-
-        // Trigger download via Blob + temporary <a>
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = filename;
-        anchor.click();
-        URL.revokeObjectURL(url);
-
-        Logger.info(`Exported ${endpoints.length} endpoint(s) to ${filename}`);
-        showSuccess(`Exported ${endpoints.length} endpoint(s)`);
-    } catch (error) {
-        Logger.error('Error exporting endpoints:', error);
-        showError('Failed to export endpoints.');
-    }
-}
-
-// Trigger the file picker for import.
-export function handleImportEndpoints() {
-    document.getElementById('importFileInput').click();
-}
-
-// Handle file selected from the file picker.
-export async function handleImportFileSelected(event) {
-    const file = event.target.files[0];
-
-    // Reset the input so re-selecting the same file fires again
-    event.target.value = '';
-
-    if (!file) {
-        return; // User cancelled the picker
-    }
-
-    // Guard: file size
-    if (file.size > MAX_IMPORT_SIZE_BYTES) {
-        showError('File is too large. Maximum size is 1 MB.');
-        return;
-    }
-
-    try {
-        showLoading('Importing endpoints...');
-
-        const fileContent = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
-            reader.onerror = () => reject(new Error('Failed to read file'));
-            reader.readAsText(file);
-        });
-
-        // Parse and structurally validate
-        const parsed = parseImportFile(fileContent);
-        if (!parsed.success) {
-            showError(parsed.error);
-            return;
-        }
-
-        // Validate individual endpoints against existing ones
-        const { endpoints: existingEndpoints = [] } = await chrome.storage.local.get(['endpoints']);
-        const { valid, skipped } = validateImportedEndpoints(
-            parsed.data.endpoints,
-            existingEndpoints
-        );
-
-        if (valid.length === 0) {
-            const msg = skipped.length > 0
-                ? 'All endpoints already exist. No new endpoints imported.'
-                : 'No valid endpoints found in file.';
-            showError(msg);
-            return;
-        }
-
-        // Assign runtime fields and persist
-        const prepared = prepareEndpointsForImport(valid);
-        const merged = [...existingEndpoints, ...prepared];
-        const saved = await saveEndpoints(merged);
-
-        if (saved) {
-            await loadEndpoints();
-            const skippedNote = skipped.length > 0 ? `, ${skipped.length} skipped as duplicate(s)` : '';
-            showSuccess(`Imported ${valid.length} endpoint(s)${skippedNote}`);
-            Logger.info(`Import complete: ${valid.length} added, ${skipped.length} skipped`);
-        }
-    } catch (error) {
-        Logger.error('Error importing endpoints:', error);
-        showError('Failed to import endpoints.');
-    } finally {
-        hideLoading();
-    }
-}
 
 export function showError(message) {
     showMessage(message, 'error');
