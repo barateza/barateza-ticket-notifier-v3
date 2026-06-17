@@ -30,7 +30,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run tests
-        run: pnpm test -- --no-coverage
+        run: pnpm jest --no-coverage
 
   release:
     needs: test
