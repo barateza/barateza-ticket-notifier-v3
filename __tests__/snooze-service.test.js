@@ -79,7 +79,8 @@ describe('SnoozeService', () => {
             expect(chrome.storage.local.set).toHaveBeenCalledWith(
                 expect.objectContaining({
                     snoozeState: expect.objectContaining({ duration: 30 })
-                })
+                }),
+                expect.any(Function)
             );
             expect(chrome.alarms.create).toHaveBeenCalledWith('snoozeEnd', expect.objectContaining({ delayInMinutes: 30 }));
         });
@@ -90,7 +91,8 @@ describe('SnoozeService', () => {
             expect(result.success).toBe(true);
             expect(chrome.alarms.create).not.toHaveBeenCalledWith('snoozeEnd', expect.anything());
             expect(chrome.storage.local.set).toHaveBeenCalledWith(
-                expect.objectContaining({ snoozeState: expect.objectContaining({ duration: 0 }) })
+                expect.objectContaining({ snoozeState: expect.objectContaining({ duration: 0 }) }),
+                expect.any(Function)
             );
         });
     });

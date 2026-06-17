@@ -14,6 +14,7 @@
 //   storage.onChanged          — keeps cache in sync across contexts
 
 import Logger from './logger.js';
+import { getLocal, setLocal } from './storage-service.js';
 
 const SNOOZE_INDEFINITE = -1;
 const NO_SNOOZE = 0;
@@ -22,18 +23,12 @@ let cachedSnoozeEndTime = null; // null = not hydrated yet
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-function getLocalState(keys) {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(keys, (data) => resolve(data || {}));
-  });
-}
-
 /**
  * Re-hydrate snoozeEndTime from chrome.storage.local.
  * Returns the snoozeEndTime (ms) or null if not snoozed / expired.
  */
 async function rehydrateSnoozeEndTime() {
-  const { snoozeState } = await getLocalState(['snoozeState']);
+  const { snoozeState } = await getLocal(['snoozeState']);
   if (snoozeState?.endTime === SNOOZE_INDEFINITE) {
     cachedSnoozeEndTime = SNOOZE_INDEFINITE;
     return cachedSnoozeEndTime;
@@ -85,7 +80,7 @@ export async function setSnooze(durationMinutes) {
 
   cachedSnoozeEndTime = snoozeEndTime;
 
-  await chrome.storage.local.set({
+  await setLocal({
     snoozeState: { endTime: snoozeEndTime, duration: durationMinutes }
   });
 

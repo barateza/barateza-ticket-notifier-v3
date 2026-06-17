@@ -13,30 +13,19 @@
 
 import Logger from './logger.js';
 import * as snoozeService from './snooze-service.js';
+import { getSession, setSession } from './storage-service.js';
 
 let creatingOffscreenPromise = null;
 
 // ─── Notification Map (session storage) ────────────────────────────────────────
 
-function getSessionState(keys) {
-  return new Promise((resolve) => {
-    chrome.storage.session.get(keys, (data) => resolve(data || {}));
-  });
-}
-
-function setSessionState(data) {
-  return new Promise((resolve) => {
-    chrome.storage.session.set(data, resolve);
-  });
-}
-
 async function getNotificationMap() {
-  const { notificationEndpointMap } = await getSessionState(['notificationEndpointMap']);
+  const { notificationEndpointMap } = await getSession(['notificationEndpointMap']);
   return new Map(Array.isArray(notificationEndpointMap) ? notificationEndpointMap : []);
 }
 
 async function saveNotificationMap(map) {
-  await setSessionState({ notificationEndpointMap: Array.from(map.entries()) });
+  await setSession({ notificationEndpointMap: Array.from(map.entries()) });
 }
 
 // ─── Offscreen / Sound ─────────────────────────────────────────────────────────

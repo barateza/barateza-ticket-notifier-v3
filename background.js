@@ -5,6 +5,7 @@ import * as notificationManager from './utils/notification-manager.js';
 import * as cookieService from './utils/cookie-service.js';
 import * as rateLimitService from './utils/rate-limit-service.js';
 import { MessageRouter } from './utils/message-router.js';
+import { getSession, setSession, getLocal } from './utils/storage-service.js';
 
 // ─── Session State Helpers ────────────────────────────────────────────────────
 // Service workers are ephemeral. All mutable state that must survive a SW
@@ -16,52 +17,7 @@ const MIN_REFRESH_INTERVAL = 30000; // 30 seconds minimum between manual refresh
 // Snooze state managed by snooze-service.js
 // Notification state managed by notification-manager.js
 // Rate-limit state managed by rate-limit-service.js
-
-/**
- * Batch-read keys from chrome.storage.session.
- * Returns a plain object with the requested keys (missing keys are undefined).
- * @param {string[]} keys
- * @returns {Promise<object>}
- */
-async function getSessionState(keys) {
-  return new Promise((resolve) => {
-    chrome.storage.session.get(keys, (data) => resolve(data || {}));
-    if (chrome.runtime.lastError) {
-      Logger.error('Error reading session storage:', chrome.runtime.lastError.message);
-    }
-  });
-}
-
-/**
- * Batch-write data to chrome.storage.session.
- * @param {object} data
- * @returns {Promise<void>}
- */
-async function setSessionState(data) {
-  return new Promise((resolve, reject) => {
-    chrome.storage.session.set(data, () => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message || 'Failed to write session storage'));
-        return;
-      }
-      resolve();
-    });
-  });
-}
-
-/**
- * Batch-read keys from chrome.storage.local using callback-style (testable).
- * @param {string[]} keys
- * @returns {Promise<object>}
- */
-async function getLocalState(keys) {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(keys, (data) => resolve(data || {}));
-    if (chrome.runtime.lastError) {
-      Logger.error('Error reading from storage:', chrome.runtime.lastError.message);
-    }
-  });
-}
+// Storage operations delegated to utils/storage-service.js
 
 /**
  * Read endpointCounts from session storage.
@@ -69,7 +25,7 @@ async function getLocalState(keys) {
  * @returns {Promise<Map<number, number>>}
  */
 async function getEndpointCounts() {
-  const { endpointCounts } = await getSessionState(['endpointCounts']);
+  const { endpointCounts } = await getSession(['endpointCounts']);
   return new Map(Array.isArray(endpointCounts) ? endpointCounts : []);
 }
 
@@ -78,7 +34,7 @@ async function getEndpointCounts() {
  * @param {Map<number, number>} map
  */
 async function saveEndpointCounts(map) {
-  await setSessionState({ endpointCounts: Array.from(map.entries()) });
+  await setSession({ endpointCounts: Array.from(map.entries()) });
 }
 
 // ─── Snooze State ─────────────────────────────────────────────────────────────
@@ -97,7 +53,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   Logger.info('Extension event:', details.reason);
 
   // Get existing data
-  const { endpoints, settings } = await getLocalState(['endpoints', 'settings']);
+  const { endpoints, settings } = await getLocal(['endpoints', 'settings']);
 
   // Only set defaults if data doesn't exist
   const updates = {};
@@ -154,7 +110,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   }
 
   // Initialize session state defaults
-  await setSessionState({
+  await setSession({
     isEnabled: true,
     lastCheckTime: 0
   });
@@ -201,7 +157,7 @@ export async function startMonitoring() {
   }
 
   // Get current settings to determine check interval
-  const { settings } = await getLocalState(['settings']);
+  const { settings } = await getLocal(['settings']);
   const interval = settings?.checkInterval || 1;
 
   // Create periodic alarm (minimum 1 minute)
@@ -222,7 +178,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       Logger.info('Skipping ticket check due to active Zendesk rate limiting');
       return;
     }
-    const { isEnabled } = await getSessionState(['isEnabled']);
+    const { isEnabled } = await getSession(['isEnabled']);
     if (isEnabled !== false) { // default to enabled if not set
       checkAllEndpoints();
     }
@@ -238,7 +194,7 @@ export async function checkAllEndpoints() {
   }
 
   try {
-    const { endpoints, settings } = await getLocalState(['endpoints', 'settings']);
+    const { endpoints, settings } = await getLocal(['endpoints', 'settings']);
 
     if (!endpoints || !Array.isArray(endpoints)) {
       Logger.info('No endpoints configured');
@@ -385,7 +341,7 @@ export async function updateBadge() {
 const router = new MessageRouter();
 
 router.register('refreshNow', async (request, sendResponse) => {
-  const { lastCheckTime = 0 } = await getSessionState(['lastCheckTime']);
+  const { lastCheckTime = 0 } = await getSession(['lastCheckTime']);
   const now = Date.now();
   if (now - lastCheckTime < MIN_REFRESH_INTERVAL) {
     Logger.info('Refresh rate limited');
@@ -395,20 +351,20 @@ router.register('refreshNow', async (request, sendResponse) => {
     });
     return;
   }
-  await setSessionState({ lastCheckTime: now });
+  await setSession({ lastCheckTime: now });
   Logger.info('Manual refresh requested');
   checkAllEndpoints();
   sendResponse({ success: true });
 });
 
 router.register('toggleEnabled', async (request, sendResponse) => {
-  await setSessionState({ isEnabled: request.enabled });
+  await setSession({ isEnabled: request.enabled });
   Logger.info(`Monitoring ${request.enabled ? 'enabled' : 'disabled'}`);
   sendResponse({ success: true });
 });
 
 router.register('getStatus', async (request, sendResponse) => {
-  const { isEnabled = true, lastCheckTime = 0 } = await getSessionState(['isEnabled', 'lastCheckTime']);
+  const { isEnabled = true, lastCheckTime = 0 } = await getSession(['isEnabled', 'lastCheckTime']);
   const counts = Array.from((await getEndpointCounts()).entries());
   const snoozed = await snoozeService.isSnoozed();
   sendResponse({
