@@ -23,6 +23,9 @@
   "author": "",
   "license": "MIT",
   "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": ">=22"
+  },
   "overrides": {
     "flatted": "3.4.2",
     "picomatch": "4.0.4"
