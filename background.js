@@ -124,27 +124,37 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   startMonitoring();
 });
 
-// ─── Handle snooze end alarm ──────────────────────────────────────────────────
+// ─── Alarm Handler ────────────────────────────────────────────────────────────
+// Single dispatcher for all alarm types.
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === 'snoozeEnd') {
-    await snoozeService.clearSnooze();
-    await updateBadge();
-    return;
-  }
+  switch (alarm.name) {
+    case 'snoozeEnd':
+      await snoozeService.clearSnooze();
+      await updateBadge();
+      break;
 
-  if (alarm.name === 'rateLimitResume') {
-    rateLimitService.clear();
-    await startMonitoring();
+    case 'rateLimitResume':
+      rateLimitService.clear();
+      await startMonitoring();
+      break;
+
+    case 'ticketCheck': {
+      if (rateLimitService.isLimited()) {
+        Logger.info('Skipping ticket check due to active Zendesk rate limiting');
+        return;
+      }
+      const { isEnabled } = await getSession(['isEnabled']);
+      if (isEnabled !== false) { // default to enabled if not set
+        checkAllEndpoints();
+      }
+      break;
+    }
+
+    default:
+      Logger.warn('Unknown alarm received:', alarm.name);
   }
 });
-
-// ─── Snooze Functions ─────────────────────────────────────────────────────────
-// Delegated to utils/snooze-service.js
-//   snoozeService.setSnooze(minutes)
-//   snoozeService.clearSnooze()
-//   snoozeService.isSnoozed()
-//   snoozeService.getRemainingTime()
 
 // ─── Monitoring ───────────────────────────────────────────────────────────────
 
@@ -170,20 +180,6 @@ export async function startMonitoring() {
   // Initial check
   checkAllEndpoints();
 }
-
-// Handle alarm events
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === 'ticketCheck') {
-    if (rateLimitService.isLimited()) {
-      Logger.info('Skipping ticket check due to active Zendesk rate limiting');
-      return;
-    }
-    const { isEnabled } = await getSession(['isEnabled']);
-    if (isEnabled !== false) { // default to enabled if not set
-      checkAllEndpoints();
-    }
-  }
-});
 
 // Main function to check all configured endpoints
 export async function checkAllEndpoints() {
