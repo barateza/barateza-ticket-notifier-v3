@@ -1,5 +1,4 @@
 import { validateEndpointUrl, validateEndpointName } from '../utils/validators.js';
-import * as Background from '../background.js';
 import * as snoozeService from '../utils/snooze-service.js';
 
 describe('Background Service Worker - High Priority Functions', () => {

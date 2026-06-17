@@ -8,7 +8,7 @@ This is a Manifest V3 Chrome extension that monitors Zendesk ticket API endpoint
 
 **For end users** (non-developers):
 
-1. **[Download v3.4.0](https://github.com/barateza/barateza-ticket-notifier-v3/archive/refs/tags/v3.4.0.zip)** - Extract the ZIP file
+1. **[Download v3.4.1](https://github.com/barateza/barateza-ticket-notifier-v3/archive/refs/tags/v3.4.1.zip)** - Extract the ZIP file
 2. Open Chrome → `chrome://extensions/`
 3. Enable "Developer mode" (top right toggle)
 4. Click "Load unpacked" and select the extracted folder
@@ -220,9 +220,9 @@ The README contains status badges that require periodic updates:
 ### Static Badges (Manual Update Required)
 
 - **Test Count Badge**: Currently shows "159 passing". **Update this badge on every version bump or when test count changes:**
-  1. Run tests: `npm test`
+  1. Run tests: `pnpm test`
   2. Note the total passing test count from the output
-  3. Update `README.md` badge URL: Change `68%20passing` to `[NEW_COUNT]%20passing` in the tests badge URL
+  3. Update `README.md` badge URL: Change `159%20passing` to `[NEW_COUNT]%20passing` in the tests badge URL
   4. Recommended timing: Do this when releasing a new version (tag push) or after merging significant test additions
 
 **Timing Strategy**:
@@ -234,7 +234,7 @@ The README contains status badges that require periodic updates:
 
 ```markdown
 # Before
-[![🧪 Tests Passing](https://img.shields.io/badge/tests-69%20passing-brightgreen?style=flat-square&logo=jest)]
+[![🧪 Tests Passing](https://img.shields.io/badge/tests-159%20passing-brightgreen?style=flat-square&logo=jest)]
 
 # After (if 75 tests pass)
 [![🧪 Tests Passing](https://img.shields.io/badge/tests-75%20passing-brightgreen?style=flat-square&logo=jest)]
@@ -615,7 +615,7 @@ grep -r "PHASES.md\|COVERAGE_SETUP.md\|FINAL_REPORT.md\|RELEASE_TEST.md" . --inc
 
 **Last Updated**: June 8, 2026
 **Documentation Status**: Consolidated to 4 core files
-**Current Version**: v3.4.0
+**Current Version**: v3.4.1
 **Test Count**: 159 passing
 
 ## Agent skills

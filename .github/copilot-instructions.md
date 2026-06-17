@@ -9,7 +9,7 @@ This is a Manifest V3 Chrome extension that monitors Zendesk ticket API endpoint
 
 **For end users** (non-developers):
 
-1. **[Download v3.3.3](https://github.com/barateza/barateza-ticket-notifier-v3/archive/refs/tags/v3.3.3.zip)** - Extract the ZIP file
+1. **[Download v3.4.1](https://github.com/barateza/barateza-ticket-notifier-v3/archive/refs/tags/v3.4.1.zip)** - Extract the ZIP file
 2. Open Chrome → `chrome://extensions/`
 3. Enable "Developer mode" (top right toggle)
 4. Click "Load unpacked" and select the extracted folder
@@ -568,7 +568,21 @@ grep -r "PHASES.md\|COVERAGE_SETUP.md\|FINAL_REPORT.md\|RELEASE_TEST.md" . --inc
 
 ---
 
-**Last Updated**: February 1, 2026
-**Documentation Status**: Consolidated to 4 core files
-**Current Version**: v3.3.3
-**Test Count**: 69 passing
+**Last Updated**: June 2026
+**Documentation Status**: Consolidated to 4 core files, fully pnpm-migrated
+**Current Version**: v3.4.1
+**Test Count**: 159 passing
+
+## Agent skills
+
+### Issue tracker
+
+Issues live as GitHub issues on `barateza/barateza-ticket-notifier-v3`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Uses the default five-label vocabulary (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context repo (no CONTEXT.md or docs/adr/ yet). See `docs/agents/domain.md`.

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.1] - 2026-06-10
+
+### Added
+- **CONTRIBUTING.md**: Full contribution guide with development setup, testing guidelines, commit conventions, and PR process.
+- **PULL_REQUEST_TEMPLATE.md**: Standardized PR template with checklist for contributors.
+- **.nvmrc**: Node version pinning (20) for consistent development environments.
+- **pnpm-workspace.yaml**: Build approval configuration for pnpm.
+
+### Changed
+- **Package Manager**: Migrated from npm to pnpm (v11) for faster installs and stricter dependency management. Removed `package-lock.json`. Lockfile is now `pnpm-lock.yaml`.
+- **CI/CD Workflows**: Updated `coverage.yml` and `release.yml` to use `pnpm install --frozen-lockfile` and `pnpm test` instead of npm.
+- **TESTING.md**: Full rewrite reflecting current state (159 tests, 13 test files, per-module coverage table).
+- **README.md**: Updated changelog (v3.4.1), expanded Contributing section with link to CONTRIBUTING.md, updated file structure to reflect `utils/` modules.
+- **.github/copilot-instructions.md**: Synced download links and version references to v3.4.1, added Agent skills section.
+
+### Fixed
+- **Lint errors**: Removed unused import in `__tests__/background.test.js`, prefixed unused parameters in `__tests__/message-router.test.js`, removed dead code branch in `popup.js` (duplicate `remainingTime === 1` condition).
+
 ## [3.4.0] - 2026-06-08
 
 ### Changed

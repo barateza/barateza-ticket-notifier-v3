@@ -18,7 +18,7 @@ A Chrome extension that monitors Zendesk ticket endpoints and notifies you with 
 
 ### Download & Install (2 minutes)
 
-1. **[Download v3.4.0](https://github.com/barateza/barateza-ticket-notifier-v3/releases/download/v3.4.0/barateza-ticket-notifier-3.4.0.zip)** - Extract the ZIP file to your computer
+1. **[Download v3.4.1](https://github.com/barateza/barateza-ticket-notifier-v3/releases/download/v3.4.1/barateza-ticket-notifier-3.4.1.zip)** - Extract the ZIP file to your computer
 2. **Open Chrome** and go to `chrome://extensions/`
 3. **Enable "Developer mode"** (toggle in the top right)
 4. **Click "Load unpacked"** and select the extracted folder
@@ -234,85 +234,55 @@ zendesk-ticket-monitor/
 ├── popup.html             # Extension popup interface
 ├── popup.css              # Popup styling
 ├── popup.js               # Popup functionality
+├── CONTRIBUTING.md        # Contribution guide
 ├── icons/
 │   ├── icon16.png         # 16x16 icon
 │   ├── icon48.png         # 48x48 icon
 │   └── icon128.png        # 128x128 icon
+├── utils/
+│   ├── cookie-service.js       # Zendesk cookie retrieval
+│   ├── endpoint-io.js          # Import/export endpoints
+│   ├── logger.js               # Logging utility
+│   ├── message-router.js       # Message routing
+│   ├── notification-manager.js # Notification lifecycle
+│   ├── rate-limit-service.js   # Rate limit tracking
+│   ├── snooze-service.js       # Notification snooze
+│   └── validators.js           # URL/settings validation
 └── README.md              # This file
 ```
 
 ## Contributing
 
-Feel free to submit issues, feature requests, or pull requests to improve this extension.
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
+
+- Development setup and available scripts
+- Code style and testing guidelines
+- Pull request process and checklist
+- Commit message conventions
+
+Check out our [good first issues](https://github.com/barateza/barateza-ticket-notifier-v3/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) to get started.
 
 ## License
 
-This project is provided as-is for educational and development purposes.
+This project is provided as-is under the [MIT License](LICENSE).
 
 ## Changelog
 
-### Version 3.3.3
+### Version 3.4.1
 
-- 🐛 **SW Messaging Fix**: Popup now gracefully handles service worker unavailability, eliminating "Unchecked runtime.lastError: No SW" console warnings.
-- 🐛 **Storage Robustness**: `getLocalState` and `getSessionState` now return empty objects instead of `undefined` on edge cases, preventing destructuring crashes.
+- 📦 **Package Manager**: Migrated from npm to pnpm for faster installs and stricter dependency management.
+- 📝 **CONTRIBUTING.md**: Full contribution guide created for new contributors.
+- 🛠️ **CI/CD**: Workflows updated to use pnpm.
+- 🔧 **Lint fixes**: Removed unused import, dead code branch, and unused parameters.
+- 📚 **TESTING.md**: Rewritten to reflect 159 tests across 13 test files.
 
-### Version 3.3.2
+### Version 3.4.0
 
-- ⏱️ **Rate Limit Backoff**: Automatic backoff when Zendesk returns 429 (Too Many Requests).
-- 🔒 **Offscreen Lock**: Improved offscreen document lifecycle to prevent race conditions.
-- 💾 **Snooze Cache**: Persistent snooze state survives service worker restarts.
-
-### Version 3.3.1
-
-- 🔄 **Default Endpoint**: Updated default endpoint from 'New AMER Tickets' to 'My Tickets' for better out-of-the-box utility.
-
-### Version 3.3.0
-
-- 📥 **Import/Export**: Added JSON Import/Export capability for endpoint configurations.
-- 🎨 **URL Display**: Endpoint URLs are now fully displayed with text wrapping instead of being truncated.
-
-### Version 3.2.3
-
-- 🐛 **Update Link Fixed**: Made the update available notification properly clickable.
-
-### Version 3.2.2
-
-- 🎨 **Dark Mode**: Fixed contrast ratios and accessibility for dark theme (WCAG AA)
-- 🔧 **Offscreen Fix**: Resolved "Unexpected token 'export'" error in offscreen document
-- 📱 **Dynamic UI**: Version number in popup now automatically retrieves from manifest
-- ✅ **Tests**: Expanded test suite to 92 passing tests
-
-### Version 3.2.0
-
-- 🔄 **Session Persistence**: State now survives service worker termination via `chrome.storage.session`
-- 📋 **Privacy Policy**: Added official privacy documentation for store compliance
-- 🛠️ **Diagnostics**: New Logger utility and user-configurable Debug Mode
-- 🚀 **Automation**: Added release packaging script for consistent deployments
-
-### Version 3.1.1
-
-- 🔒 **Security**: Fixed CodeQL "Incomplete URL substring sanitization" warnings
-- 🔒 **Security**: Implemented explicit URL validation following OWASP recommendations
-- ✅ Improved hostname validation to prevent domain spoofing
-- ✅ Replaced regex patterns with explicit component checking
-- ✅ Enhanced URL parsing for API endpoint validation
-- ✅ All 69 tests passing with improved security coverage
-
-### Version 3.0.0
-
-- Snooze notification feature (configurable duration or indefinite)
-- Dark mode theme support
-- Enhanced error handling and recovery
-- Comprehensive test coverage (68+ passing tests)
-- Improved UI with better status indicators
-- Bug fixes and performance optimizations
-
-### Version 1.0
-
-- Initial release
-- Manifest V3 compatibility
-- Cookie-based authentication
-- Multiple endpoint support
-- Sound and visual notifications
-- Configurable check intervals
-- Manual refresh functionality
+- 🏗️ **Architecture Decomposition**: Extracted 5 cohesive modules from `background.js` and `popup.js`:
+  - **SnoozeService** (`utils/snooze-service.js`): Encapsulated snooze state behind a 4-method interface
+  - **NotificationManager** (`utils/notification-manager.js`): Consolidated notification creation, sound playback, offscreen management, and URL mapping
+  - **CookieService** (`utils/cookie-service.js`): Centralised Zendesk cookie retrieval with in-memory caching
+  - **RateLimitService** (`utils/rate-limit-service.js`): Wrapped Retry-After parsing, backoff scheduling, and alarm management
+  - **MessageRouter** (`utils/message-router.js`): Replaced the 7-branch switch statement with a handler registry
+- ✅ 5 new test files with 45 new unit tests (159 total)
+- 🎯 Improved test coverage across all utility modules

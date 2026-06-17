@@ -1,6 +1,6 @@
 {
   "name": "barateza-ticket-notifier",
-  "version": "3.4.0",
+  "version": "3.4.1",
   "description": "Zendesk ticket monitor Chrome extension with code coverage",
   "main": "background.js",
   "scripts": {
@@ -10,7 +10,9 @@
     "coverage:report": "node -e \"const fs=require('fs'); if(!fs.existsSync('coverage/coverage-summary.json')){throw new Error('coverage/coverage-summary.json not found. Run tests with coverage first.');} console.log('Coverage report is available at coverage/');\"",
     "test:e2e:setup": "node scripts/setup-e2e-auth.mjs",
     "test:e2e": "playwright test",
-    "build": "./scripts/package.sh"
+    "build": "./scripts/package.sh",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "keywords": [
     "zendesk",
@@ -20,6 +22,11 @@
   ],
   "author": "",
   "license": "MIT",
+  "packageManager": "pnpm@11.7.0",
+  "overrides": {
+    "flatted": "3.4.2",
+    "picomatch": "4.0.4"
+  },
   "devDependencies": {
     "@babel/preset-env": "^7.23.0",
     "@eslint/js": "^10.0.1",
@@ -33,12 +40,5 @@
     "globals": "^17.3.0",
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "flatted": "3.4.2",
-      "picomatch@<3.0.0": "2.3.2",
-      "picomatch@>=4.0.0 <4.0.4": "4.0.4"
-    }
   }
 }

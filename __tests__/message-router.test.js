@@ -65,7 +65,7 @@ describe('MessageRouter', () => {
         });
 
         test('catches handler errors and sends error response', (done) => {
-            router.register('broken', async (request, sendResponse) => {
+            router.register('broken', async (_request, _sendResponse) => {
                 throw new Error('Handler crashed');
             });
 

@@ -219,8 +219,6 @@ export async function updateSnoozeStatus() {
                 snoozeRemaining.textContent = 'Until I turn back on';
             } else if (response.remainingTime === 1) {
                 snoozeRemaining.textContent = 'Less than 1 minute remaining';
-            } else if (response.remainingTime === 1) {
-                snoozeRemaining.textContent = '1 minute remaining';
             } else if (response.remainingTime < 60) {
                 snoozeRemaining.textContent = `${response.remainingTime} minutes remaining`;
             } else {
