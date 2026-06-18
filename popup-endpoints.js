@@ -359,7 +359,8 @@ export async function handleImportFileSelected(event) {
             return;
         }
 
-        const mergedEndpoints = prepareEndpointsForImport(valid, existingEndpoints);
+        const newEndpoints = prepareEndpointsForImport(valid);
+        const mergedEndpoints = [...existingEndpoints, ...newEndpoints];
 
         const saved = await saveEndpoints(mergedEndpoints);
         if (saved) {

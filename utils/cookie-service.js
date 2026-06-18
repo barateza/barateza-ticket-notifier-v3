@@ -2,6 +2,7 @@
 //
 // Encapsulates Zendesk authentication cookie retrieval with an in-memory
 // cache that deduplicates concurrent requests and caches results per domain.
+// Cache entries expire after CACHE_TTL_MS to prevent stale session cookies.
 //
 // Interface (1 public method):
 //   getCookies(domain) → string (cookie header, empty on failure)
@@ -9,14 +10,20 @@
 // Internal:
 //   domainCache        — Map<domain, string> caches the cookie string
 //   inFlightCache      — Map<domain, Promise> deduplicates concurrent fetches
+//   cacheTimestamps    — Map<domain, number> tracks when each domain was cached
 
 import Logger from './logger.js';
+
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /** Map<domain, string> — caches cookie string after first fetch */
 const domainCache = new Map();
 
 /** Map<domain, Promise<string>> — deduplicates in-flight requests */
 const inFlightCache = new Map();
+
+/** Map<domain, number> — timestamp when each domain's cache was set */
+const cacheTimestamps = new Map();
 
 /**
  * Internal: fetch cookies from chrome.cookies and filter for Zendesk auth cookies.
@@ -47,10 +54,11 @@ async function fetchZendeskCookies(domain) {
 /**
  * Get Zendesk authentication cookies for a domain.
  * Uses an in-memory cache to avoid redundant chrome.cookies.getAll calls.
+ * Cache entries expire after CACHE_TTL_MS (5 minutes).
  *
  * First call for a domain triggers a real fetch.
  * Concurrent calls for the same domain share the in-flight promise.
- * Subsequent calls return the cached result.
+ * Subsequent calls return the cached result (if still within TTL).
  *
  * Returns empty string on failure.
  *
@@ -58,9 +66,15 @@ async function fetchZendeskCookies(domain) {
  * @returns {Promise<string>} — cookie header string, e.g. "session=abc; _zendesk=xyz"
  */
 export async function getCookies(domain) {
-  // Return cached value if available
+  // Return cached value if available and not expired
   if (domainCache.has(domain)) {
-    return domainCache.get(domain);
+    const cachedAt = cacheTimestamps.get(domain) || 0;
+    if (Date.now() - cachedAt < CACHE_TTL_MS) {
+      return domainCache.get(domain);
+    }
+    // Cache expired — fall through to re-fetch
+    domainCache.delete(domain);
+    cacheTimestamps.delete(domain);
   }
 
   // Deduplicate concurrent requests for the same domain
@@ -72,6 +86,7 @@ export async function getCookies(domain) {
     try {
       const cookieString = await fetchZendeskCookies(domain);
       domainCache.set(domain, cookieString);
+      cacheTimestamps.set(domain, Date.now());
       return cookieString;
     } catch (error) {
       Logger.error('Error getting cookies:', error);
@@ -92,4 +107,5 @@ export async function getCookies(domain) {
 export function clearCache() {
   domainCache.clear();
   inFlightCache.clear();
+  cacheTimestamps.clear();
 }

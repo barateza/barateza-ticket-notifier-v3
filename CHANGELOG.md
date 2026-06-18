@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.3] - 2026-06-18
+
+### Fixed
+- **Security M-1 (Data loss)**: Endpoint import now correctly merges with existing endpoints instead of replacing them. `prepareEndpointsForImport` was ignoring the `existingEndpoints` argument.
+- **Security M-2 (Stale cookies)**: Cookie cache now has a 5-minute TTL to prevent using stale Zendesk session cookies after logout/re-login.
+- **Security L-2 (Input validation)**: Added `maxlength="2048"` to endpoint URL textarea to prevent oversized inputs.
+- **Security I-2 (Rate limit)**: GitHub update check now caches results in `chrome.storage.local` for 1 hour, avoiding unnecessary API calls.
+
+### Changed
+- Cookie cache timestamps tracked per-domain; `clearCache()` also clears timestamps.
+
 ## [3.4.2] - 2026-06-17
 
 ### Fixed
