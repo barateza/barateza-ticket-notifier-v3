@@ -8,7 +8,7 @@
 // ───────────────────────────────────────────────────────────────────────────────
 
 import Logger from './utils/logger.js';
-import { sendToSW, showLoading, hideLoading, showSuccess, showError } from './popup-utils.js';
+import { callSW, sendToSW, showLoading, hideLoading } from './popup-utils.js';
 
 let snoozeTimer = null;
 
@@ -27,47 +27,28 @@ export function hideSnoozeModal() {
 
 export async function handleConfirmSnooze() {
     const duration = parseInt(document.getElementById('snoozeDuration').value);
-    try {
-        showLoading('Snoozing notifications...');
-        const response = await sendToSW({
-            action: 'setSnooze',
-            duration: duration
-        });
-
-        if (response && response.success) {
-            hideSnoozeModal();
-            showSuccess(duration === 0 ? 'Notifications snoozed indefinitely' : `Notifications snoozed for ${duration} minutes`);
-            await updateSnoozeStatus();
-        } else {
-            showError('Failed to snooze notifications');
-        }
-    } catch (error) {
-        Logger.error('Error snoozing notifications:', error);
-        showError('Failed to snooze notifications');
-    } finally {
-        hideLoading();
+    showLoading('Snoozing notifications...');
+    const response = await callSW('setSnooze', { duration }, {
+        successMessage: duration === 0 ? 'Notifications snoozed indefinitely' : `Notifications snoozed for ${duration} minutes`,
+        errorMessage: 'Failed to snooze notifications'
+    });
+    if (response?.success) {
+        hideSnoozeModal();
+        await updateSnoozeStatus();
     }
+    hideLoading();
 }
 
 export async function handleCancelSnooze() {
-    try {
-        showLoading('Canceling snooze...');
-        const response = await sendToSW({
-            action: 'clearSnooze'
-        });
-
-        if (response && response.success) {
-            await updateSnoozeStatus();
-            showSuccess('Notifications no longer snoozed');
-        } else {
-            showError('Failed to cancel snooze');
-        }
-    } catch (error) {
-        Logger.error('Error canceling snooze:', error);
-        showError('Failed to cancel snooze');
-    } finally {
-        hideLoading();
+    showLoading('Canceling snooze...');
+    const response = await callSW('clearSnooze', {}, {
+        successMessage: 'Notifications no longer snoozed',
+        errorMessage: 'Failed to cancel snooze'
+    });
+    if (response?.success) {
+        await updateSnoozeStatus();
     }
+    hideLoading();
 }
 
 // ─── Status Display ───────────────────────────────────────────────────────────

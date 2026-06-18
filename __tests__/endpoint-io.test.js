@@ -1,13 +1,7 @@
 // Unit tests for utils/endpoint-io.js
-import {
-    SCHEMA_ID,
-    SCHEMA_VERSION,
-    MAX_IMPORT_SIZE_BYTES,
-    exportEndpoints,
-    parseImportFile,
-    validateImportedEndpoints,
-    prepareEndpointsForImport
-} from '../utils/endpoint-io.js';
+import { SCHEMA_ID, SCHEMA_VERSION, MAX_IMPORT_SIZE_BYTES } from '../utils/endpoint-schema.js';
+import { exportEndpoints } from '../utils/endpoint-export.js';
+import { parseImportFile, validateImportedEndpoints, prepareEndpointsForImport } from '../utils/endpoint-import.js';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 

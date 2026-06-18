@@ -10,10 +10,12 @@ import { getSession, setSession, getLocal } from './utils/storage-service.js';
 import {
   startMonitoring,
   handleAlarmTick,
-  checkAllEndpoints,
-  checkEndpoint,
   updateBadge
 } from './utils/monitor.js';
+import {
+  checkAllEndpoints,
+  checkEndpoint
+} from './utils/poller.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -173,4 +175,4 @@ chrome.storage.onChanged.addListener((changes, area) => {
 Logger.info('Zendesk Ticket Monitor background script loaded');
 
 // ─── Re-exports for backward compatibility (tests) ────────────────────────────
-export { startMonitoring, checkAllEndpoints, checkEndpoint, updateBadge };
+export { startMonitoring, handleAlarmTick, checkAllEndpoints, checkEndpoint, updateBadge };

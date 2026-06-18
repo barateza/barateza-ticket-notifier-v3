@@ -4,9 +4,8 @@
 import Logger from './utils/logger.js';
 import {
     sendToSW,
-    hideLoading,
-    showError,
-    showSuccess
+    callSW,
+    hideLoading
 } from './popup-utils.js';
 import {
     showSnoozeModal,
@@ -66,57 +65,41 @@ export {
 
 // ─── Manual Refresh ────────────────────────────────────────────────────────────
 
-async function handleRefreshNow() {
+export async function handleRefreshNow() {
     const btn = document.getElementById('refreshBtn');
     const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="btn-icon">⏳</span> Checking...';
+    btn.disabled = true;
 
-    try {
-        btn.innerHTML = '<span class="btn-icon">⏳</span> Checking...';
-        btn.disabled = true;
-
-        const response = await sendToSW({ action: 'refreshNow' });
-
-        if (response && response.success) {
-            showSuccess('Manual refresh completed');
-            await updateStatus();
-        } else {
-            showError(response.error || 'Refresh failed');
-        }
-    } catch (error) {
-        Logger.error('Error during refresh:', error);
-        showError('Refresh failed');
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        updateLastCheckTime();
+    const response = await callSW('refreshNow', {}, {
+        successMessage: 'Manual refresh completed',
+        errorMessage: 'Refresh failed'
+    });
+    if (response?.success) {
+        await updateStatus();
     }
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+    updateLastCheckTime();
 }
 
 // ─── Monitoring Toggle ─────────────────────────────────────────────────────────
 
-async function handleToggleMonitoring() {
+export async function handleToggleMonitoring() {
     const btn = document.getElementById('toggleBtn');
     const isEnabled = btn.dataset.enabled === 'true';
     const newState = !isEnabled;
 
-    try {
-        const response = await sendToSW({
-            action: 'toggleEnabled',
-            enabled: newState
-        });
-
-        if (response && response.success) {
-            btn.dataset.enabled = newState.toString();
-            btn.innerHTML = newState ?
-                '<span class="btn-icon">⏸️</span> Pause' :
-                '<span class="btn-icon">▶️</span> Resume';
-
-            await updateStatus();
-            showSuccess(`Monitoring ${newState ? 'resumed' : 'paused'}`);
-        }
-    } catch (error) {
-        Logger.error('Error toggling monitoring:', error);
-        showError('Failed to toggle monitoring');
+    const response = await callSW('toggleEnabled', { enabled: newState }, {
+        successMessage: `Monitoring ${newState ? 'resumed' : 'paused'}`,
+        errorMessage: 'Failed to toggle monitoring'
+    });
+    if (response?.success) {
+        btn.dataset.enabled = newState.toString();
+        btn.innerHTML = newState ?
+            '<span class="btn-icon">⏸️</span> Pause' :
+            '<span class="btn-icon">▶️</span> Resume';
+        await updateStatus();
     }
 }
 

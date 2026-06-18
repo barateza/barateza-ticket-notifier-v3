@@ -8,12 +8,14 @@ import Logger from './utils/logger.js';
 import * as cookieService from './utils/cookie-service.js';
 import { validateEndpointUrl, validateEndpoint } from './utils/validators.js';
 import {
-    exportEndpoints,
+    exportEndpoints
+} from './utils/endpoint-export.js';
+import {
     parseImportFile,
     validateImportedEndpoints,
-    prepareEndpointsForImport,
-    MAX_IMPORT_SIZE_BYTES
-} from './utils/endpoint-io.js';
+    prepareEndpointsForImport
+} from './utils/endpoint-import.js';
+import { MAX_IMPORT_SIZE_BYTES } from './utils/endpoint-schema.js';
 import { showLoading, hideLoading, showSuccess, showError } from './popup-utils.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

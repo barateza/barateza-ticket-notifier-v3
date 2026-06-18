@@ -1,15 +1,19 @@
 // Listen for messages from the service worker
 chrome.runtime.onMessage.addListener(msg => {
     if ('play' in msg) {
-        playAudio(msg.play);
+        try {
+            playAudio(msg.play);
+        } catch (error) {
+            console.error('Audio playback error:', error);
+        }
     }
 });
 
 // Play audio with access to DOM APIs
 export function playAudio({ type, volume = 0.3 }) {
     if (type === 'beep') {
-        // Create the same beep sound using AudioContext
         const audioContext = new AudioContext();
+
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
 
@@ -24,5 +28,12 @@ export function playAudio({ type, volume = 0.3 }) {
 
         oscillator.start(audioContext.currentTime);
         oscillator.stop(audioContext.currentTime + 0.3);
+
+        // Close the AudioContext after playback to release resources
+        oscillator.onended = () => {
+            audioContext.close().catch(err => console.error('Error closing AudioContext:', err));
+        };
+    } else {
+        console.warn('Unknown sound type:', type);
     }
 }

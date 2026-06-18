@@ -34,6 +34,37 @@ export async function sendToSW(message) {
     }
 }
 
+/**
+ * Higher-level wrapper around sendToSW that handles the common
+ * success/error pattern: shows a success toast, calls onSuccess,
+ * and shows an error toast on failure.
+ *
+ * @param {string} action — message action name
+ * @param {object} [params={}] — additional message fields
+ * @param {object} [opts]
+ * @param {string} [opts.successMessage] — shown on success
+ * @param {string} [opts.errorMessage] — shown on failure
+ * @param {function} [opts.onSuccess] — called after success
+ * @returns {Promise<object|null>}
+ */
+export async function callSW(action, params = {}, { successMessage, errorMessage, onSuccess } = {}) {
+    try {
+        const response = await sendToSW({ action, ...params });
+        if (response && response.success) {
+            if (successMessage) showSuccess(successMessage);
+            if (onSuccess) await onSuccess();
+            return response;
+        } else {
+            showError(errorMessage || (response && response.error) || 'Request failed');
+            return null;
+        }
+    } catch (error) {
+        Logger.error(errorMessage || 'SW error:', error);
+        showError(errorMessage || 'Request failed');
+        return null;
+    }
+}
+
 // ─── Toast Messages ───────────────────────────────────────────────────────────
 
 export function showError(message) {
