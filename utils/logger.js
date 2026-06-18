@@ -42,7 +42,11 @@ class LoggerInstance {
      * @param  {...any} args 
      */
     error(...args) {
-        // Always log errors regardless of debug mode to ensure critical issues are visible
+        // Always log errors regardless of debug mode to ensure critical issues are visible.
+        // Design decision (v3.4.3): maintaining error visibility was preferred over
+        // suppressing it in production, even though endpoint URLs may appear in console.
+        // Rationale: silent failures in production are harder to diagnose than
+        // the marginal risk of console exposure on shared devices.
         console.error(...args);
     }
 }

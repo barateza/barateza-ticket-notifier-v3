@@ -332,6 +332,12 @@ export async function handleImportFileSelected(event) {
         return;
     }
 
+    // Guard: MIME type (accept=".json" can be bypassed via "All Files")
+    if (file.type && file.type !== 'application/json' && !file.type.startsWith('text/')) {
+        showError('Invalid file type. Please select a JSON file.');
+        return;
+    }
+
     try {
         showLoading('Importing endpoints...');
 

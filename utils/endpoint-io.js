@@ -60,12 +60,12 @@ export function parseImportFile(fileContent) {
     try {
         parsed = JSON.parse(fileContent);
     } catch {
-        return { success: false, error: 'Invalid file format. Please select a valid JSON file.' };
+        return { success: false, error: 'Invalid file format. Could not parse the file as JSON.' };
     }
 
     // 2. Ensure it's an object (guards against plain JSON arrays, strings, etc.)
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-        return { success: false, error: 'Invalid file format. Please select a valid JSON file.' };
+        return { success: false, error: 'Invalid file format. Expected a JSON object, got ' + (Array.isArray(parsed) ? 'an array' : typeof parsed) + '.' };
     }
 
     // 3. Validate schema version
@@ -78,7 +78,7 @@ export function parseImportFile(fileContent) {
 
     // 4. Validate endpoints array presence
     if (!Array.isArray(parsed.endpoints)) {
-        return { success: false, error: 'Invalid file format. Please select a valid JSON file.' };
+        return { success: false, error: 'Invalid file format. Missing or invalid "endpoints" array in the file.' };
     }
 
     // 5. Empty array guard
