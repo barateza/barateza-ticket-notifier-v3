@@ -8,7 +8,7 @@ This is a Manifest V3 Chrome extension that monitors Zendesk ticket API endpoint
 
 **For end users** (non-developers):
 
-1. **[Download v3.4.3](https://github.com/barateza/barateza-ticket-notifier-v3/archive/refs/tags/v3.4.3.zip)** - Extract the ZIP file
+1. **[Download v3.5.0](https://github.com/barateza/barateza-ticket-notifier-v3/archive/refs/tags/v3.5.0.zip)** - Extract the ZIP file
 2. Open Chrome → `chrome://extensions/`
 3. Enable "Developer mode" (top right toggle)
 4. Click "Load unpacked" and select the extracted folder
@@ -219,7 +219,7 @@ The README contains status badges that require periodic updates:
 
 ### Static Badges (Manual Update Required)
 
-- **Test Count Badge**: Currently shows "159 passing". **Update this badge on every version bump or when test count changes:**
+- **Test Count Badge**: Currently shows **182 passing** (up from 159). **Update this badge on every version bump or when test count changes:**
   1. Run tests: `pnpm test`
   2. Note the total passing test count from the output
   3. Update `README.md` badge URL: Change `159%20passing` to `[NEW_COUNT]%20passing` in the tests badge URL
@@ -234,7 +234,7 @@ The README contains status badges that require periodic updates:
 
 ```markdown
 # Before
-[![🧪 Tests Passing](https://img.shields.io/badge/tests-159%20passing-brightgreen?style=flat-square&logo=jest)]
+[![🧪 Tests Passing](https://img.shields.io/badge/tests-182%20passing-brightgreen?style=flat-square&logo=jest)]
 
 # After (if 75 tests pass)
 [![🧪 Tests Passing](https://img.shields.io/badge/tests-75%20passing-brightgreen?style=flat-square&logo=jest)]
@@ -493,9 +493,9 @@ The project maintains minimal, consolidated documentation (4 core files):
 
 ### Test Badge Accuracy & Updates
 
-**Current Badge**: `tests-68%20passing` in README.md
+**Current Badge**: `tests-182%20passing` in README.md
 
-The test count badge (`🧪 Tests Passing`) reflects actual passing test count: **68 tests** (21 Phase 1 + 27 Phase 2 + 20 Phase 3).
+The test count badge (`🧪 Tests Passing`) reflects actual passing test count: **182 tests**.
 
 **When to Update**:
 
@@ -615,8 +615,8 @@ grep -r "PHASES.md\|COVERAGE_SETUP.md\|FINAL_REPORT.md\|RELEASE_TEST.md" . --inc
 
 **Last Updated**: June 8, 2026
 **Documentation Status**: Consolidated to 4 core files
-**Current Version**: v3.4.3
-**Test Count**: 159 passing
+**Current Version**: v3.5.0
+**Test Count**: 182 passing
 
 ## Agent skills
 

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.0] - 2026-06-29
+
+### Added
+- **Custom Notification Sounds from myinstants.com**: Paste a myinstants.com URL
+  in settings to use any sound effect as your notification tone instead of the
+  built-in beep. The extension fetches the page, extracts the MP3 link, and
+  plays it via Web Audio API. Includes a Test button to preview.
+- **Settings migration**: Existing installations get `customSoundEnabled`,
+  `customSoundUrl`, and `customSoundMp3` fields added automatically.
+
+### Changed
+- Host permissions extended to `*://*.myinstants.com/*` for custom sound
+  resolution and MP3 playback.
+- Offscreen document now supports `type='mp3'` play messages: fetches the
+  MP3 URL, decodes audio data, and plays through AudioBufferSourceNode.
+  Autoplay policy is handled via `audioContext.resume()`.
+- Test count increased from 159 to 182 passing.
+
 ## [3.4.3] - 2026-06-18
 
 ### Fixed
