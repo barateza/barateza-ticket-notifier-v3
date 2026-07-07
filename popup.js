@@ -16,7 +16,7 @@ import {
     startSnoozeTimer,
     stopSnoozeTimer
 } from './popup-snooze.js';
-import { loadSettings, saveSettings } from './popup-settings.js';
+import { loadSettings, saveSettings, updateCustomSoundStatus } from './popup-settings.js';
 import {
     checkForUpdates,
     isNewerVersion
@@ -60,8 +60,86 @@ export {
     deleteEndpoint,
     reindexEndpointElements,
     checkForUpdates,
-    isNewerVersion
+    isNewerVersion,
+    handleFetchSound,
+    handleTestSound,
+    handleCustomSoundEnabledChange
 };
+
+// ─── Custom Sound ────────────────────────────────────────────────────────────
+
+async function handleCustomSoundEnabledChange() {
+    const enabled = document.getElementById('customSoundEnabled').checked;
+    document.getElementById('customSoundUrl').disabled = !enabled;
+    document.getElementById('fetchSoundBtn').disabled = !enabled;
+    if (!enabled) {
+        document.getElementById('soundName').textContent = '';
+        document.getElementById('testSoundBtn').classList.add('hidden');
+    }
+    await saveSettings();
+}
+
+async function handleFetchSound() {
+    const url = document.getElementById('customSoundUrl').value.trim();
+    if (!url) {
+        showError('Please enter a myinstants.com URL');
+        return;
+    }
+
+    const btn = document.getElementById('fetchSoundBtn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳...';
+    btn.disabled = true;
+
+    try {
+        const response = await sendToSW({ action: 'resolveSoundUrl', myinstantsUrl: url });
+        if (response?.success) {
+            // Update settings with the resolved MP3 URL and the myinstants URL
+            const { settings } = await chrome.storage.local.get(['settings']);
+            settings.customSoundUrl = url;
+            settings.customSoundMp3 = response.mp3Url;
+            await chrome.storage.local.set({ settings });
+
+            document.getElementById('soundName').textContent = `🎵 ${response.soundName}`;
+            document.getElementById('testSoundBtn').classList.remove('hidden');
+            showSuccess(`Sound fetched: ${response.soundName}`);
+        } else {
+            showError(response?.error || 'Failed to fetch sound');
+        }
+    } catch (error) {
+        Logger.error('Error fetching sound:', error);
+        showError('Failed to fetch sound');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function handleTestSound() {
+    const { settings } = await chrome.storage.local.get(['settings']);
+    if (!settings?.customSoundMp3) {
+        showError('No custom sound configured — fetch one first');
+        return;
+    }
+
+    const btn = document.getElementById('testSoundBtn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '🔊...';
+    btn.disabled = true;
+
+    try {
+        const response = await sendToSW({ action: 'playTestSound', mp3Url: settings.customSoundMp3 });
+        if (!response?.success) {
+            showError(response?.error || 'Failed to play test sound');
+        }
+    } catch (error) {
+        Logger.error('Error playing test sound:', error);
+        showError('Failed to play test sound');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
 
 // ─── Manual Refresh ────────────────────────────────────────────────────────────
 
@@ -194,6 +272,11 @@ function setupEventListeners() {
     document.getElementById('checkInterval').addEventListener('change', saveSettings);
     document.getElementById('darkMode').addEventListener('change', saveSettings);
     document.getElementById('debugMode').addEventListener('change', saveSettings);
+
+    // Custom sound
+    document.getElementById('customSoundEnabled').addEventListener('change', handleCustomSoundEnabledChange);
+    document.getElementById('fetchSoundBtn').addEventListener('click', handleFetchSound);
+    document.getElementById('testSoundBtn').addEventListener('click', handleTestSound);
 
     // Endpoint management
     document.getElementById('addEndpointBtn').addEventListener('click', showAddEndpointModal);

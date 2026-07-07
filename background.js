@@ -49,13 +49,19 @@ chrome.runtime.onInstalled.addListener(async (details) => {
       soundEnabled: true,
       notificationEnabled: true,
       darkMode: false,
-      debugMode: false
+      debugMode: false,
+      customSoundEnabled: false,
+      customSoundUrl: '',
+      customSoundMp3: ''
     };
     Logger.info('Setting default settings');
   } else {
     let changed = false;
     if (!('darkMode' in settings)) { settings.darkMode = false; changed = true; }
     if (!('debugMode' in settings)) { settings.debugMode = false; changed = true; }
+    if (!('customSoundEnabled' in settings)) { settings.customSoundEnabled = false; changed = true; }
+    if (!('customSoundUrl' in settings)) { settings.customSoundUrl = ''; changed = true; }
+    if (!('customSoundMp3' in settings)) { settings.customSoundMp3 = ''; changed = true; }
     if (changed) { updates.settings = settings; }
     Logger.info('Preserving existing settings');
   }
@@ -155,6 +161,80 @@ router.register('updateInterval', async (request, sendResponse) => {
   Logger.info(`Alarm interval updated to ${interval} minutes`);
   sendResponse({ success: true });
 });
+
+// ─── Custom Sound Handlers ─────────────────────────────────────────────────────
+
+router.register('resolveSoundUrl', async (request, sendResponse) => {
+  try {
+    const myinstantsUrl = request.myinstantsUrl;
+    if (!myinstantsUrl || !myinstantsUrl.startsWith('https://www.myinstants.com/')) {
+      sendResponse({ success: false, error: 'Please enter a valid myinstants.com URL' });
+      return;
+    }
+
+    Logger.info('Fetching myinstants URL:', myinstantsUrl);
+    const response = await fetch(myinstantsUrl, { signal: AbortSignal.timeout(10000) });
+
+    if (!response.ok) {
+      sendResponse({ success: false, error: `Failed to fetch sound page (HTTP ${response.status})` });
+      return;
+    }
+
+    const html = await response.text();
+
+    // Find the "Download MP3" link: href="/media/sounds/...mp3"
+    const match = html.match(/\/media\/sounds\/[^"']+\.mp3/);
+    if (!match) {
+      sendResponse({ success: false, error: 'Could not find a downloadable MP3 on that page' });
+      return;
+    }
+
+    const mp3Path = match[0];
+    const mp3Url = `https://www.myinstants.com${mp3Path}`;
+    const soundName = mp3Path.split('/').pop().replace('.mp3', '');
+
+    Logger.info(`Resolved myinstants sound: ${soundName} -> ${mp3Url}`);
+    sendResponse({ success: true, mp3Url, soundName });
+  } catch (error) {
+    Logger.error('Error resolving myinstants URL:', error);
+    sendResponse({ success: false, error: error.message || 'Failed to resolve sound URL' });
+  }
+});
+
+router.register('playTestSound', async (request, sendResponse) => {
+  try {
+    await createOffscreenForSound();
+    await chrome.runtime.sendMessage({
+      play: { type: 'mp3', url: request.mp3Url, volume: 0.3 }
+    });
+    Logger.info('Played test sound:', request.mp3Url);
+    sendResponse({ success: true });
+  } catch (error) {
+    Logger.error('Error playing test sound:', error);
+    sendResponse({ success: false, error: error.message || 'Failed to play test sound' });
+  }
+});
+
+// Helper: create offscreen doc for audio playback
+let creatingOffscreenPromise = null;
+
+async function createOffscreenForSound() {
+  if (await chrome.offscreen.hasDocument()) return;
+  if (creatingOffscreenPromise) {
+    await creatingOffscreenPromise;
+    return;
+  }
+  creatingOffscreenPromise = chrome.offscreen.createDocument({
+    url: 'offscreen.html',
+    reasons: ['AUDIO_PLAYBACK'],
+    justification: 'Play notification sounds for new Zendesk tickets'
+  });
+  try {
+    await creatingOffscreenPromise;
+  } finally {
+    creatingOffscreenPromise = null;
+  }
+}
 
 chrome.runtime.onMessage.addListener(router.createListener());
 

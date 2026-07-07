@@ -776,3 +776,76 @@ body.dark-mode .close-btn:hover {
         background-color: #4ade80;
     }
 }
+
+/* Custom sound styles */
+.custom-sound-group {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 12px;
+    margin-top: 4px;
+}
+
+.custom-sound-group label {
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #475569;
+    font-size: 13px;
+}
+
+.custom-sound-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.custom-sound-input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: inherit;
+    color: #1e293b;
+    background: white;
+}
+
+.custom-sound-input:disabled {
+    background: #f1f5f9;
+    color: #94a3b8;
+}
+
+.custom-sound-status {
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 24px;
+}
+
+.sound-name {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.dark-mode .custom-sound-group {
+    border-top-color: #475569;
+}
+
+.dark-mode .custom-sound-group label {
+    color: #94a3b8;
+}
+
+.dark-mode .custom-sound-input {
+    background: #334155;
+    border-color: #475569;
+    color: #f1f5f9;
+}
+
+.dark-mode .custom-sound-input:disabled {
+    background: #1e293b;
+    color: #64748b;
+}
+
+.dark-mode .sound-name {
+    color: #94a3b8;
+}

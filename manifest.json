@@ -12,7 +12,8 @@
   ],
   "host_permissions": [
     "*://*.zendesk.com/*",
-    "https://api.github.com/*"
+    "https://api.github.com/*",
+    "*://*.myinstants.com/*"
   ],
   "background": {
     "service_worker": "background.js",

@@ -49,12 +49,21 @@ async function createOffscreen() {
   }
 }
 
-async function playSound() {
+async function playSound(settings) {
   try {
     await createOffscreen();
-    await chrome.runtime.sendMessage({
-      play: { type: 'beep', volume: 0.3 }
-    });
+
+    const playOptions = { volume: 0.3 };
+
+    if (settings?.customSoundEnabled && settings?.customSoundMp3) {
+      playOptions.type = 'mp3';
+      playOptions.url = settings.customSoundMp3;
+      Logger.info('Playing custom sound:', settings.customSoundMp3);
+    } else {
+      playOptions.type = 'beep';
+    }
+
+    await chrome.runtime.sendMessage({ play: playOptions });
     Logger.info('Played notification sound');
   } catch (error) {
     Logger.error('Error playing sound:', error);
@@ -112,7 +121,7 @@ export async function notify({ endpointId, endpointName, newTickets, totalCount,
 
   // Play sound notification
   if (settings && settings.soundEnabled) {
-    await playSound();
+    await playSound(settings);
   }
 
   // Show browser notification
