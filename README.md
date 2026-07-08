@@ -43,6 +43,7 @@ A Chrome extension that monitors Zendesk ticket endpoints and notifies you with 
 - 📝 **Logger Utility** - Centralized logging with configurable debug mode
 - 🎛️ **Easy Management** - Simple popup interface for adding/removing endpoints
 - 🔊 **Custom Notification Sounds** - Use any sound effect from myinstants.com as your notification tone
+
 ## Installation
 
 ### Method 1: Load Unpacked Extension (Development)
@@ -77,17 +78,17 @@ A Chrome extension that monitors Zendesk ticket endpoints and notifies you with 
 The extension monitors Zendesk Search API endpoints. Here are some examples:
 
 ``` text
-# My Unsolved Tickets
+# My unsolved tickets (assigned to me, open)
 https://your-domain.zendesk.com/api/v2/search.json?query=type:ticket+assignee:me+status:open
 
 # High priority tickets
 https://your-domain.zendesk.com/api/v2/search.json?query=type:ticket+priority:high+status:open
 
-# Tickets assigned to you
-https://your-domain.zendesk.com/api/v2/search.json?query=type:ticket+assignee:me+status:open
+# New or pending tickets in the Americas group
+https://your-domain.zendesk.com/api/v2/search.json?query=type:ticket+group:amer+status:new+status:pending
 
-# Recent tickets (last 24 hours)
-https://your-domain.zendesk.com/api/v2/search.json?query=type:ticket+created>2024-01-01
+# Tickets created after a specific date
+https://your-domain.zendesk.com/api/v2/search.json?query=type:ticket+created>2025-01-01
 ```
 
 **Important**: Replace `your-domain` with your actual Zendesk subdomain (e.g., `company.zendesk.com`).
@@ -99,10 +100,12 @@ You can backup or share your configured endpoints:
 
 ### Settings
 
-- **Sound Notifications**: Enable/disable notification sounds
-- **Browser Notifications**: Enable/disable popup notifications
+- **Sound Notifications**: Enable/disable the beep or custom MP3 notification sound
+- **Custom Sound**: Paste a myinstants.com URL to use any sound effect — the extension extracts the MP3 automatically
+- **Browser Notifications**: Enable/disable popup notifications when new tickets arrive
 - **Check Interval**: Set how often to check for new tickets (1-15 minutes)
 - **Dark Mode**: Toggle between light and dark theme
+- **Debug Mode**: Enable detailed console logging to troubleshoot issues
 
 ### Snooze Notifications
 
@@ -167,9 +170,9 @@ The extension uses your existing Zendesk session cookies for authentication. Thi
 ### Notifications Not Working
 
 - Check that browser notifications are enabled for Chrome
-- Verify notification permissions in Chrome settings
+- Verify notification permissions in Chrome settings (`chrome://settings/content/notifications`)
 - Ensure sound is enabled in extension settings
-- Check that the extension is not paused
+- Check that the extension is not paused or snoozed
 
 ### Performance Issues
 
@@ -217,6 +220,10 @@ When adding endpoints manually:
 
 The extension monitors the `count` field for changes.
 
+## What's New
+
+See the [CHANGELOG](CHANGELOG.md) for a full history of changes by version.
+
 ## Privacy & Security
 
 - **No Data Collection**: The extension doesn't collect or transmit your data
@@ -229,13 +236,21 @@ The extension monitors the `count` field for changes.
 ``` text
 zendesk-ticket-monitor/
 ├── manifest.json          # Extension configuration
-├── background.js          # Service worker for monitoring
-├── offscreen.html         # Offscreen document for audio (Manifest V3)
+├── background.js          # Service worker — event wiring only
+├── offscreen.html         # Offscreen document for audio (MV3)
 ├── offscreen.js           # Audio playback via Web Audio API
 ├── popup.html             # Extension popup interface
 ├── popup.css              # Popup styling
-├── popup.js               # Popup functionality
+├── popup.js               # Popup orchestrator
+├── popup-endpoints.js     # Endpoint management UI
+├── popup-settings.js      # Settings UI
+├── popup-snooze.js        # Snooze UI
+├── popup-updates.js       # Update check UI
+├── popup-utils.js         # Popup helper utilities
 ├── CONTRIBUTING.md        # Contribution guide
+├── CHANGELOG.md           # Version history
+├── PRIVACY_POLICY.md      # Privacy policy
+├── install-guide.html     # Visual installation guide
 ├── icons/
 │   ├── icon16.png         # 16x16 icon
 │   ├── icon48.png         # 48x48 icon
@@ -245,9 +260,12 @@ zendesk-ticket-monitor/
 │   ├── endpoint-io.js          # Import/export endpoints
 │   ├── logger.js               # Logging utility
 │   ├── message-router.js       # Message routing
+│   ├── monitor.js              # Monitoring orchestration
 │   ├── notification-manager.js # Notification lifecycle
+│   ├── poller.js               # Endpoint polling logic
 │   ├── rate-limit-service.js   # Rate limit tracking
 │   ├── snooze-service.js       # Notification snooze
+│   ├── storage-service.js      # Storage wrappers
 │   └── validators.js           # URL/settings validation
 └── README.md              # This file
 ```
@@ -267,23 +285,4 @@ Check out our [good first issues](https://github.com/barateza/barateza-ticket-no
 
 This project is provided as-is under the [MIT License](LICENSE).
 
-## Changelog
 
-### Version 3.4.1
-
-- 📦 **Package Manager**: Migrated from npm to pnpm for faster installs and stricter dependency management.
-- 📝 **CONTRIBUTING.md**: Full contribution guide created for new contributors.
-- 🛠️ **CI/CD**: Workflows updated to use pnpm.
-- 🔧 **Lint fixes**: Removed unused import, dead code branch, and unused parameters.
-- 📚 **TESTING.md**: Rewritten to reflect 159 tests across 13 test files.
-
-### Version 3.4.0
-
-- 🏗️ **Architecture Decomposition**: Extracted 5 cohesive modules from `background.js` and `popup.js`:
-  - **SnoozeService** (`utils/snooze-service.js`): Encapsulated snooze state behind a 4-method interface
-  - **NotificationManager** (`utils/notification-manager.js`): Consolidated notification creation, sound playback, offscreen management, and URL mapping
-  - **CookieService** (`utils/cookie-service.js`): Centralised Zendesk cookie retrieval with in-memory caching
-  - **RateLimitService** (`utils/rate-limit-service.js`): Wrapped Retry-After parsing, backoff scheduling, and alarm management
-  - **MessageRouter** (`utils/message-router.js`): Replaced the 7-branch switch statement with a handler registry
-- ✅ 5 new test files with 45 new unit tests (159 total)
-- 🎯 Improved test coverage across all utility modules

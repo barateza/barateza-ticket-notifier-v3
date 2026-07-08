@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zendesk Ticket Monitor - Installation Guide</title>
+    <title>Zendesk Ticket Monitor — Installation Guide</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -64,6 +64,7 @@
         .file-list ul {
             list-style-type: none;
             padding: 0;
+            columns: 2;
         }
         .file-list li {
             padding: 5px 0;
@@ -72,73 +73,116 @@
         .file-list li:last-child {
             border-bottom: none;
         }
-        .file-list li:before {
-            content: "📄 ";
-            margin-right: 8px;
-        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>🎫 Zendesk Ticket Monitor</h1>
-        <p>Chrome Extension Installation Guide</p>
+        <p>Chrome Extension — Installation Guide v3.5.4</p>
     </div>
 
     <div class="step">
-        <h3>Step 1: Verify Files</h3>
-        <p>Make sure you have all the required files in your extension directory:</p>
+        <h3>📥 Step 1: Get the Extension</h3>
+        <p><strong>Option A — Download the ZIP</strong> (recommended for most users):</p>
+        <ol>
+            <li>Download <code>barateza-ticket-notifier-3.5.4.zip</code> from the
+                <a href="https://github.com/barateza/barateza-ticket-notifier-v3/releases">releases page</a></li>
+            <li>Extract the ZIP to a folder on your computer</li>
+        </ol>
+        <p><strong>Option B — Clone the repository</strong> (for developers):</p>
+        <div class="code">git clone https://github.com/barateza/barateza-ticket-notifier-v3.git</div>
+    </div>
+
+    <div class="step">
+        <h3>📂 Step 2: Verify the Files</h3>
+        <p>Your extension folder should contain these files:</p>
         <div class="file-list">
             <ul>
                 <li>manifest.json</li>
                 <li>background.js</li>
+                <li>offscreen.html</li>
+                <li>offscreen.js</li>
                 <li>popup.html</li>
                 <li>popup.css</li>
                 <li>popup.js</li>
-                <li>README.md</li>
+                <li>popup-endpoints.js</li>
+                <li>popup-settings.js</li>
+                <li>popup-snooze.js</li>
+                <li>popup-updates.js</li>
+                <li>popup-utils.js</li>
                 <li>icons/icon16.png</li>
                 <li>icons/icon48.png</li>
                 <li>icons/icon128.png</li>
+                <li>utils/ (directory with 11 modules)</li>
             </ul>
-        </div>
-        <div class="warning">
-            <strong>Missing Icons?</strong> If you don't have the PNG icon files, open <code>icons/icon-generator.html</code> in your browser and save each canvas as a PNG file.
         </div>
     </div>
 
     <div class="step">
-        <h3>Step 2: Enable Developer Mode</h3>
+        <h3>⚙️ Step 3: Enable Developer Mode</h3>
         <ol>
             <li>Open Google Chrome</li>
             <li>Navigate to <code>chrome://extensions/</code></li>
-            <li>Toggle "Developer mode" ON (top right corner)</li>
+            <li>Toggle <strong>"Developer mode"</strong> ON (top right corner)</li>
         </ol>
     </div>
 
     <div class="step">
-        <h3>Step 3: Load the Extension</h3>
+        <h3>📦 Step 4: Load the Extension</h3>
         <ol>
-            <li>Click "Load unpacked" button</li>
+            <li>Click <strong>"Load unpacked"</strong></li>
             <li>Select the folder containing all the extension files</li>
-            <li>Click "Select Folder"</li>
+            <li>Click <strong>"Select Folder"</strong></li>
         </ol>
         <div class="success">
-            ✅ You should now see "Zendesk Ticket Monitor" in your extensions list!
+            ✅ You should now see "Zendesk Ticket Monitor" in your extensions list with the icon!
         </div>
     </div>
 
     <div class="step">
-        <h3>Step 4: Initial Setup</h3>
+        <h3>🔑 Step 5: Log in to Zendesk</h3>
         <ol>
-            <li><strong>Login to Zendesk</strong> in any tab (this creates the authentication cookies)</li>
-            <li><strong>Click the extension icon</strong> in your Chrome toolbar</li>
-            <li><strong>Configure your first endpoint</strong></li>
+            <li>Open a new tab and go to your Zendesk instance (e.g., <code>https://your-domain.zendesk.com</code>)</li>
+            <li>Log in with your credentials</li>
+            <li>The extension will automatically use your existing session cookies — no API tokens needed</li>
+        </ol>
+        <div class="warning">
+            <strong>Important:</strong> You must stay logged into Zendesk in at least one tab for the extension to work.
+            If your session expires, just log in again.
+        </div>
+    </div>
+
+    <div class="step">
+        <h3>🎯 Step 6: Configure Endpoints</h3>
+        <ol>
+            <li><strong>Click the extension icon</strong> in the Chrome toolbar</li>
+            <li><strong>Review the default endpoint</strong> — it monitors tickets assigned to you</li>
+            <li><strong>Add more endpoints</strong> as needed (e.g., specific groups, priorities)</li>
+            <li><strong>Adjust settings</strong> — check interval, sound, notifications, dark mode</li>
             <li><strong>Test the setup</strong> by clicking "Refresh Now"</li>
+        </ol>
+        <p>See the <a href="https://github.com/barateza/barateza-ticket-notifier-v3/blob/main/README.md">README</a> for detailed endpoint URL examples and API reference.</p>
+    </div>
+
+    <div class="step">
+        <h3>🔊 Step 7 (Optional): Custom Notification Sound</h3>
+        <ol>
+            <li>Open the extension popup and go to <strong>Settings</strong></li>
+            <li>Enable <strong>Custom Sound</strong></li>
+            <li>Paste a <a href="https://www.myinstants.com">myinstants.com</a> URL (e.g., a sound effect page)</li>
+            <li>Click <strong>Fetch Sound</strong> — the extension automatically extracts the MP3 link</li>
+            <li>Click <strong>Test</strong> to preview</li>
         </ol>
     </div>
 
     <div style="text-align: center; margin-top: 40px; padding: 20px; background: #f8f9fa; border-radius: 10px;">
-        <h3>🎉 Your Zendesk Ticket Monitor extension is ready!</h3>
-        <p>Check the README.md file for detailed documentation and troubleshooting tips.</p>
+        <h3>🎉 Your extension is ready!</h3>
+        <p>New tickets will trigger a sound and/or browser notification based on your settings.</p>
+        <p style="font-size: 0.9em; color: #666;">
+            📖 Full documentation — <a href="https://github.com/barateza/barateza-ticket-notifier-v3/blob/main/README.md">README.md</a>
+            &bull; 🐛 Report issues — <a href="https://github.com/barateza/barateza-ticket-notifier-v3/issues">GitHub Issues</a>
+            &bull; 📋 Changelog — <a href="https://github.com/barateza/barateza-ticket-notifier-v3/blob/main/CHANGELOG.md">CHANGELOG.md</a>
+        </p>
     </div>
 </body>
 </html>
