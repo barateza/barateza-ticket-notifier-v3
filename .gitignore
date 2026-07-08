@@ -18,6 +18,9 @@ coverage/
 __tests__/node_modules/
 .jest
 
+# Reasonix agent state
+.reasonix/
+
 # Linting
 .eslintcache
 
