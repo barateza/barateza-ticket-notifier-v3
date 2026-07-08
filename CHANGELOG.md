@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.4] - 2026-07-08
+
+### Changed
+- Updated download links and documentation for v3.5.4 release.
+- Bumped test badge from 182 to 213 passing tests.
+
 ## [3.5.3] - 2026-07-07
 
 ### Added
