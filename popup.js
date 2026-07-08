@@ -5,7 +5,9 @@ import Logger from './utils/logger.js';
 import {
     sendToSW,
     callSW,
-    hideLoading
+    hideLoading,
+    showError,
+    showSuccess
 } from './popup-utils.js';
 import {
     showSnoozeModal,
