@@ -118,7 +118,7 @@ router.register('refreshNow', async (request, sendResponse) => {
   }
   await setSession({ lastCheckTime: now });
   Logger.info('Manual refresh requested');
-  checkAllEndpoints();
+  await checkAllEndpoints();
   sendResponse({ success: true });
 });
 
