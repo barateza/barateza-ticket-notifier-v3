@@ -143,6 +143,51 @@ async function handleTestSound() {
     }
 }
 
+// ─── Notification Queue ────────────────────────────────────────────────────────
+
+async function loadNotifications() {
+    const list = document.getElementById('notificationsList');
+    const badge = document.getElementById('notifCount');
+    const clearBtn = document.getElementById('clearAllNotifBtn');
+
+    // Guard: DOM elements may not exist in test environments
+    if (!list) return;
+
+    const response = await sendToSW({ action: 'getNotifications' });
+    const notifications = response?.notifications || [];
+
+    if (notifications.length === 0) {
+        list.innerHTML = '<div class="notifications-empty">No new notifications</div>';
+        badge.textContent = '';
+        clearBtn.classList.add('hidden');
+        return;
+    }
+
+    badge.textContent = notifications.length;
+    clearBtn.classList.remove('hidden');
+    list.innerHTML = '';
+
+    for (const n of notifications) {
+        const time = new Date(n.timestamp).toLocaleTimeString();
+        const item = document.createElement('div');
+        item.className = 'notification-item';
+        item.innerHTML = `
+            <div class="notif-info">
+                <div class="notif-endpoint">${n.endpointName}</div>
+                <div class="notif-detail">+${n.newTickets} new · ${n.totalCount} total</div>
+                <div class="notif-time">${time}</div>
+            </div>
+            <button class="notif-dismiss-btn" data-notif-id="${n.id}">Dismiss</button>
+        `;
+        item.querySelector('.notif-dismiss-btn').addEventListener('click', async (e) => {
+            const id = e.target.dataset.notifId;
+            await sendToSW({ action: 'acknowledgeNotification', notificationId: id });
+            await loadNotifications();
+        });
+        list.appendChild(item);
+    }
+}
+
 // ─── Manual Refresh ────────────────────────────────────────────────────────────
 
 export async function handleRefreshNow() {
@@ -157,6 +202,7 @@ export async function handleRefreshNow() {
     });
     if (response?.success) {
         await updateStatus();
+        await loadNotifications();
     }
     btn.innerHTML = originalText;
     btn.disabled = false;
@@ -228,6 +274,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Initialize UI
         await loadSettings();
         await loadEndpoints();
+        await loadNotifications();
         await updateStatus();
         await updateSnoozeStatus();
     } catch (error) {
@@ -306,6 +353,12 @@ function setupEventListeners() {
         if (e.target.id === 'snoozeModal') {
             hideSnoozeModal();
         }
+    });
+
+    // Notification queue
+    document.getElementById('clearAllNotifBtn').addEventListener('click', async () => {
+        await sendToSW({ action: 'acknowledgeAllNotifications' });
+        await loadNotifications();
     });
 
     // Delegated actions for endpoints list

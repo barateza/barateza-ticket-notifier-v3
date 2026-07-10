@@ -162,6 +162,23 @@ router.register('updateInterval', async (request, sendResponse) => {
   sendResponse({ success: true });
 });
 
+// ─── Notification Queue Handlers ──────────────────────────────────────────────
+
+router.register('getNotifications', async (request, sendResponse) => {
+  const pending = await notificationManager.getPendingNotifications();
+  sendResponse({ notifications: pending });
+});
+
+router.register('acknowledgeNotification', async (request, sendResponse) => {
+  await notificationManager.acknowledgeNotification(request.notificationId);
+  sendResponse({ success: true });
+});
+
+router.register('acknowledgeAllNotifications', async (request, sendResponse) => {
+  await notificationManager.acknowledgeAllNotifications();
+  sendResponse({ success: true });
+});
+
 // ─── Custom Sound Handlers ─────────────────────────────────────────────────────
 
 router.register('resolveSoundUrl', async (request, sendResponse) => {

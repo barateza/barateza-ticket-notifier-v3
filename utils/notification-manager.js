@@ -16,6 +16,61 @@ import { getSession, setSession } from './storage-service.js';
 
 let creatingOffscreenPromise = null;
 
+// ─── Notification History (session storage) ────────────────────────────────────
+
+const HISTORY_KEY = 'notificationHistory';
+
+async function getHistory() {
+  const { [HISTORY_KEY]: history } = await getSession([HISTORY_KEY]);
+  return Array.isArray(history) ? history : [];
+}
+
+async function saveHistory(history) {
+  await setSession({ [HISTORY_KEY]: history });
+}
+
+/**
+ * Return unacknowledged notifications, newest first.
+ */
+export async function getPendingNotifications() {
+  const history = await getHistory();
+  return history.filter(n => !n.acknowledged).reverse();
+}
+
+/**
+ * Mark a notification as acknowledged and clear its Chrome notification.
+ * If the notification has already been cleared (chrome.notifications.clear
+ * is safe to call on non-existent IDs) this still removes it from the queue.
+ */
+export async function acknowledgeNotification(notificationId) {
+  const history = await getHistory();
+  const idx = history.findIndex(n => n.id === notificationId);
+  if (idx !== -1) {
+    history[idx].acknowledged = true;
+    await saveHistory(history);
+  }
+  // Clear the Chrome notification regardless
+  chrome.notifications.clear(notificationId);
+}
+
+/**
+ * Acknowledge all pending notifications at once.
+ */
+export async function acknowledgeAllNotifications() {
+  const history = await getHistory();
+  const pendingIds = [];
+  for (const n of history) {
+    if (!n.acknowledged) {
+      n.acknowledged = true;
+      pendingIds.push(n.id);
+    }
+  }
+  await saveHistory(history);
+  for (const id of pendingIds) {
+    chrome.notifications.clear(id);
+  }
+}
+
 // ─── Notification Map (session storage) ────────────────────────────────────────
 
 async function getNotificationMap() {
@@ -139,6 +194,21 @@ export async function notify({ endpointId, endpointName, newTickets, totalCount,
     const notifMap = await getNotificationMap();
     notifMap.set(notificationId, endpointUrl);
     await saveNotificationMap(notifMap);
+
+    // Persist notification in history for the popup queue
+    const history = await getHistory();
+    history.push({
+      id: notificationId,
+      endpointName,
+      newTickets,
+      totalCount,
+      endpointUrl,
+      timestamp: Date.now(),
+      acknowledged: false
+    });
+    // Keep max 50 entries to avoid quota issues
+    if (history.length > 50) history.splice(0, history.length - 50);
+    await saveHistory(history);
 
     await chrome.notifications.create(notificationId, notificationOptions);
   }
