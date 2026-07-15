@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.6.0] - 2026-07-08
+
+### Added
+- **Notification Queue in Popup**: Each notification now appears as a dismissable entry in the popup, allowing users to review recent ticket alerts without relying solely on Chrome notifications. Each entry shows the endpoint name, ticket count, and a dismiss button.
+- Popup sub-module files are now included in the release package for proper notification queue rendering.
+
+### Fixed
+- `checkAllEndpoints` is now properly awaited in the `refreshNow` handler, preventing race conditions on manual refresh.
+- Fixed missing imports (`showError`, `showSuccess`) in `popup.js` that could cause silent failures.
+- Notification queue popup files are now bundled in the release zip.
+
+### Changed
+- Refreshed README and install-guide.html with updated instructions.
+
 ## [3.5.4] - 2026-07-08
 
 ### Changed

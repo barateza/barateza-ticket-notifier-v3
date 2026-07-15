@@ -8,7 +8,7 @@ new tickets arrive. Uses cookie-based authentication (no API tokens).
 
 ### For end users (non-developers)
 
-1. **[Download v3.5.4](https://github.com/barateza/barateza-ticket-notifier-v3/archive/refs/tags/v3.5.4.zip)** — Extract the ZIP file
+1. **[Download v3.6.0](https://github.com/barateza/barateza-ticket-notifier-v3/archive/refs/tags/v3.6.0.zip)** — Extract the ZIP file
 2. Open Chrome → `chrome://extensions/`
 3. Enable "Developer mode" (top right toggle)
 4. Click "Load unpacked" and select the extracted folder
