@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<!-- ⚠️ PROTOTYPE — THROWAWAY. Answers "how should provider selection look in the popup?"
+     (ticket: Popup UI sketch for provider selection, barateza/barateza-ticket-notifier-v3#42)
+     Three variants, switchable via ?variant=A|B|C + the floating bar at the bottom.
+     Open: start prototype-provider-select.html
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Prototype — Provider selection (ticket #42)</title>
+<style>
+  :root{
+    --grad: linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+    --ink:#2c3e50; --muted:#7f8c8d; --border:#e9ecef; --card:#fff; --row:#f8f9fa;
+    --green:#27ae60; --red:#e74c3c; --teal:#4ECDC4; --jira:#0052CC; --zendesk:#03a9f4;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    font-size:14px;color:var(--ink);
+    background:var(--grad);min-height:100vh;display:flex;justify-content:center;padding:24px 0;
+  }
+  .phone{width:400px;background:#f4f6f9;min-height:560px;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.35);overflow:hidden;display:flex;flex-direction:column}
+  .header{background:rgba(255,255,255,.95);padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+  .header h1{font-size:17px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px}
+  .status{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+  .controls{display:flex;gap:8px;padding:12px 16px;background:#fff;border-bottom:1px solid var(--border)}
+  .btn{border:none;border-radius:6px;padding:7px 12px;font-size:12px;cursor:pointer;font-weight:600;font-family:inherit}
+  .btn-primary{background:var(--grad);color:#fff}
+  .btn-outline{background:#fff;border:1px solid #c9d2db;color:var(--ink)}
+  .btn-ghost{background:none;color:var(--muted);border:1px solid transparent}
+  .section{background:#fff;margin:10px 12px;border-radius:10px;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .section h3{font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:10px}
+  .sec-head{display:flex;justify-content:space-between;align-items:center}
+  .row{background:var(--row);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:8px}
+  .row-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .row-name{font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px}
+  .row-url{font-size:10.5px;color:var(--muted);word-break:break-all;margin-top:3px}
+  .row-count{font-size:12px;font-weight:600;color:var(--green);white-space:nowrap}
+  .row-count.zero{color:var(--muted)}
+  .badge{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#fff;border-radius:9px;padding:2px 7px}
+  .badge.zendesk{background:var(--zendesk)}
+  .badge.jira{background:var(--jira)}
+  .chip{font-size:10px;font-weight:700;padding:2px 8px;border-radius:9px;border:1px solid}
+  .chip.zendesk{color:var(--zendesk);border-color:var(--zendesk);background:#eaf6fe}
+  .chip.jira{color:var(--jira);border-color:var(--jira);background:#eaf0fc}
+  .filter-sel{font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;color:var(--ink)}
+  .add-btn{width:100%;margin-top:2px}
+  /* modal */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:5}
+  .modal{width:380px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 16px 50px rgba(0,0,0,.4)}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border)}
+  .modal-head h3{font-size:15px}
+  .x{border:none;background:none;font-size:20px;color:var(--muted);cursor:pointer}
+  .modal-body{padding:16px}
+  .form-group{margin-bottom:12px}
+  .form-group label{display:block;font-size:12px;font-weight:600;color:var(--ink);margin-bottom:5px}
+  input[type=text],textarea{width:100%;border:1px solid #c9d2db;border-radius:6px;padding:8px 10px;font-size:12.5px;font-family:inherit;color:var(--ink)}
+  textarea{resize:none;height:64px}
+  .hint{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.45}
+  .hint code{background:var(--row);padding:1px 4px;border-radius:3px;font-size:10px}
+  .error{font-size:11.5px;color:var(--red);margin-top:5px;font-weight:500}
+  input.err{border-color:var(--red);box-shadow:0 0 0 1px var(--red)}
+  .form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+  /* ---- Variant A: segmented ---- */
+  .seg{display:flex;background:var(--row);border:1px solid var(--border);border-radius:8px;padding:3px;margin-bottom:14px}
+  .seg button{flex:1;border:none;background:none;padding:7px 0;border-radius:6px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit}
+  .seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+  /* ---- Variant B: radio cards ---- */
+  .radio-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+  .radio-card{border:1.5px solid var(--border);border-radius:8px;padding:10px;cursor:pointer;background:#fff;position:relative}
+  .radio-card.on{border-color:var(--jira);box-shadow:0 0 0 1px var(--jira)}
+  .radio-card .r-title{font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:6px}
+  .radio-card .r-desc{font-size:10.5px;color:var(--muted);margin-top:3px;line-height:1.35}
+  .radio-card input{position:absolute;opacity:0}
+  /* ---- Variant C: inference ---- */
+  .detect-row{display:flex;align-items:center;gap:8px}
+  .detect-row input{flex:1}
+  .group-label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:12px 0 6px;display:flex;align-items:center;justify-content:space-between}
+  .group-label .cnt{font-weight:600}
+  /* switcher */
+  .switcher{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:#222;color:#fff;padding:8px 14px;border-radius:999px;box-shadow:0 6px 20px rgba(0,0,0,.45);font-size:13px;z-index:50;font-weight:600}
+  .switcher button{background:#444;border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;line-height:1}
+  .switcher .label{min-width:190px;text-align:center}
+  .proto-banner{background:#ffe9a8;color:#6b5300;font-size:11px;text-align:center;padding:4px;font-weight:600}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="proto-banner">⚠️ PROTOTYPE — throwaway · ticket #42 · use the bar at the bottom to switch variants</div>
+  <div class="header">
+    <h1>🎫 Zendesk Monitor</h1>
+    <div class="status"><span class="dot"></span> Monitoring</div>
+  </div>
+  <div class="controls">
+    <button class="btn btn-primary">🔄 Refresh Now</button>
+    <button class="btn btn-outline">⏸️ Pause</button>
+  </div>
+
+  <div class="section">
+    <div class="sec-head">
+      <h3>Monitors <span id="monCount" style="color:var(--muted)"></span></h3>
+      <div id="filterWrap"></div>
+    </div>
+    <div id="list"></div>
+    <button class="btn btn-outline add-btn" id="addBtn">➕ Add Monitor</button>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="modalTitle">Add New Monitor</h3>
+        <button class="x" id="closeBtn">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+</div>
+
+<div class="switcher">
+  <button id="prev" aria-label="Previous variant">◀</button>
+  <span class="label" id="swLabel"></span>
+  <button id="next" aria-label="Next variant">▶</button>
+</div>
+
+<script>
+// ── PROTOTYPE state (in-memory, no persistence) ──────────────────────────────
+const MONITORS = [
+  { name:'Unassigned AMER', provider:'zendesk', count:3, active:true,
+    url:'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+group:amer+assignee:none' },
+  { name:'High Priority', provider:'zendesk', count:1, active:true,
+    url:'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+priority:urgent' },
+  { name:'SUPPORT — Open', provider:'jira', count:7, active:true,
+    url:'https://myco.atlassian.net/issues/?jql=project%20%3D%20SUPPORT%20AND%20status%20%3D%20Open' },
+  { name:'SLA Breach Watch', provider:'jira', count:2, active:false,
+    url:'https://myco.atlassian.net/issues/?jql=project%20%3D%20SUPPORT%20AND%20priority%20%3D%20Highest' },
+];
+const ZEN_URL = 'https://your-domain.zendesk.com/api/v2/search.json?query=type:ticket+status:new';
+const JIRA_URL = 'https://your-site.atlassian.net/issues/?jql=project%20%3D%20SUPPORT%20AND%20status%20%3D%20Open';
+const errZ = 'URL must be a Zendesk domain (*.zendesk.com) with /api/v2/search';
+const errJ = 'URL must be an Atlassian site (*.atlassian.net) with a ?jql= query';
+
+// ── shared bits ───────────────────────────────────────────────────────────────
+const badge = p => `<span class="badge ${p}">${p === 'zendesk' ? 'Zendesk' : 'Jira'}</span>`;
+const rowHtml = m => `
+  <div class="row">
+    <div class="row-top">
+      <span class="row-name">${m.name}</span>
+      <span class="row-count ${m.count === 0 ? 'zero' : ''}">${m.count} ticket${m.count === 1 ? '' : 's'}</span>
+    </div>
+    <div class="row-url">${m.url}</div>
+  </div>`;
+
+// ── Variant A — segmented choice + badge on list rows ────────────────────────
+function variantA(){
+  document.getElementById('monCount').textContent = `${MONITORS.length} total`;
+  document.getElementById('filterWrap').innerHTML = '';
+  document.getElementById('list').innerHTML = MONITORS.map(m => `
+    <div class="row">
+      <div class="row-top">
+        <span class="row-name">${badge(m.provider)} ${m.name}</span>
+        <span class="row-count ${m.count === 0 ? 'zero' : ''}">${m.count}</span>
+      </div>
+      <div class="row-url">${m.url}</div>
+    </div>`).join('');
+
+  let provider = 'zendesk';
+  const body = document.getElementById('modalBody');
+  const render = () => {
+    const zen = provider === 'zendesk';
+    body.innerHTML = `
+      <div class="seg">
+        <button class="${zen ? 'on' : ''}" data-p="zendesk">Zendesk</button>
+        <button class="${!zen ? 'on' : ''}" data-p="jira">Jira</button>
+      </div>
+      <div class="form-group"><label>Name:</label>
+        <input type="text" placeholder="e.g., Unassigned tickets"></div>
+      <div class="form-group"><label>${zen ? 'Zendesk API URL:' : 'Jira search URL:'}</label>
+        <textarea id="urlA" placeholder="${zen ? ZEN_URL : JIRA_URL}"></textarea>
+        <div class="hint">${zen
+          ? 'Paste a Zendesk <b>Search API</b> URL — <code>…/api/v2/search.json?query=…</code>'
+          : 'Paste a Jira <b>search URL</b> from the UI — any link with <code>?jql=…</code>. We rewrite it to the count API for polling.'}</div>
+        <div class="error" id="errA" style="display:none">${zen ? errZ : errJ}</div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-outline">🔍 Test Connection</button>
+        <button class="btn btn-primary">💾 Save</button>
+      </div>`;
+    body.querySelectorAll('.seg button').forEach(b => b.onclick = () => { provider = b.dataset.p; render(); });
+    document.getElementById('urlA').addEventListener('input', e => {
+      const err = document.getElementById('errA');
+      const bad = zen ? !e.target.value.includes('zendesk.com') : !e.target.value.includes('atlassian.net');
+      e.target.classList.toggle('err', e.target.value.length > 0 && bad);
+      err.style.display = e.target.value.length > 0 && bad ? 'block' : 'none';
+    });
+  };
+  render();
+}
+
+// ── Variant B — radio-card modal + provider filter on the list ───────────────
+function variantB(){
+  let filter = 'all';
+  const renderList = () => {
+    const rows = MONITORS.filter(m => filter === 'all' || m.provider === filter);
+    document.getElementById('monCount').textContent = `${rows.length} of ${MONITORS.length}`;
+    document.getElementById('filterWrap').innerHTML =
+      `<select class="filter-sel" id="filt">
+         <option value="all">All providers</option>
+         <option value="zendesk">Zendesk</option>
+         <option value="jira">Jira</option>
+       </select>`;
+    document.getElementById('filt').value = filter;
+    document.getElementById('filt').onchange = e => { filter = e.target.value; renderList(); };
+    document.getElementById('list').innerHTML = rows.map(m => `
+      <div class="row">
+        <div class="row-top">
+          <span class="row-name">${m.name}</span>
+          <span class="row-count ${m.count === 0 ? 'zero' : ''}">${m.count}</span>
+        </div>
+        <div class="row-url">${m.provider} · ${m.url}</div>
+      </div>`).join('');
+  };
+  renderList();
+
+  let provider = 'jira';
+  const body = document.getElementById('modalBody');
+  const render = () => {
+    const cards = [
+      { p:'zendesk', t:'Zendesk', d:'Search API · browser session cookies' },
+      { p:'jira', t:'Jira (JSM)', d:'JQL queries · API token auth' },
+    ];
+    body.innerHTML = `
+      <div class="radio-grid">
+        ${cards.map(c => `
+          <label class="radio-card ${provider === c.p ? 'on' : ''}">
+            <input type="radio" name="prov" value="${c.p}" ${provider === c.p ? 'checked' : ''}>
+            <span class="r-title">${badge(c.p)} ${c.t}</span>
+            <div class="r-desc">${c.d}</div>
+          </label>`).join('')}
+      </div>
+      <div class="form-group"><label>Name:</label>
+        <input type="text" placeholder="e.g., SUPPORT — Open"></div>
+      <div class="form-group"><label>Search URL:</label>
+        <textarea id="urlB" placeholder="${provider === 'jira' ? JIRA_URL : ZEN_URL}"></textarea>
+        <div class="hint">${provider === 'jira'
+          ? 'Copy any Jira URL that contains <code>?jql=…</code> — from the search bar, a saved filter, or a board.'
+          : 'Paste the Zendesk Search API URL for the query you want to watch.'}</div>
+      </div>
+      <div class="error" id="errB" style="display:none">${provider === 'jira' ? errJ : errZ}</div>
+      <div class="form-actions">
+        <button class="btn btn-outline">🔍 Test Connection</button>
+        <button class="btn btn-primary">💾 Save</button>
+      </div>`;
+    body.querySelectorAll('.radio-card').forEach(c => c.onclick = () => {
+      provider = c.querySelector('input').value; render();
+    });
+    document.getElementById('urlB').addEventListener('input', e => {
+      const err = document.getElementById('errB');
+      const bad = provider === 'jira' ? !e.target.value.includes('atlassian.net') : !e.target.value.includes('zendesk.com');
+      e.target.classList.toggle('err', e.target.value.length > 0 && bad);
+      err.style.display = e.target.value.length > 0 && bad ? 'block' : 'none';
+    });
+  };
+  render();
+}
+
+// ── Variant C — inference-first + grouped list ───────────────────────────────
+function variantC(){
+  document.getElementById('monCount').textContent = `${MONITORS.length} total`;
+  document.getElementById('filterWrap').innerHTML = '';
+  const groups = ['zendesk', 'jira'];
+  document.getElementById('list').innerHTML = groups.map(g => {
+    const rows = MONITORS.filter(m => m.provider === g);
+    if (!rows.length) return '';
+    const total = rows.reduce((s, r) => s + r.count, 0);
+    return `<div class="group-label">${badge(g)} <span class="cnt">${rows.length} monitors · ${total} tickets</span></div>`
+      + rows.map(rowHtml).join('');
+  }).join('');
+
+  const body = document.getElementById('modalBody');
+  const detect = url => url.includes('atlassian.net') ? 'jira'
+    : url.includes('zendesk.com') ? 'zendesk' : null;
+  body.innerHTML = `
+    <div class="form-group"><label>Name:</label>
+      <input type="text" placeholder="e.g., Unassigned tickets"></div>
+    <div class="form-group"><label>Search URL:</label>
+      <div class="detect-row">
+        <textarea id="urlC" placeholder="${ZEN_URL}\n${JIRA_URL}"></textarea>
+        <span id="detChip"></span>
+      </div>
+      <div class="hint">No provider step — paste any <b>Zendesk search URL</b> or <b>Jira search URL</b>; the provider is detected from the address.</div>
+      <div class="error" id="errC" style="display:none">Could not detect a provider. Use a *.zendesk.com or *.atlassian.net search URL.</div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline">🔍 Test Connection</button>
+      <button class="btn btn-primary">💾 Save</button>
+    </div>`;
+  document.getElementById('urlC').addEventListener('input', e => {
+    const p = detect(e.target.value);
+    const chip = document.getElementById('detChip');
+    const err = document.getElementById('errC');
+    chip.innerHTML = p ? `<span class="chip ${p}">${p === 'jira' ? 'Detected: Jira' : 'Detected: Zendesk'}</span>` : '';
+    e.target.classList.toggle('err', e.target.value.length > 0 && !p);
+    err.style.display = e.target.value.length > 0 && !p ? 'block' : 'none';
+  });
+}
+
+// ── switcher ──────────────────────────────────────────────────────────────────
+const VARIANTS = [
+  { key:'A', name:'Segmented choice + badge list', fn:variantA },
+  { key:'B', name:'Radio-card modal + list filter', fn:variantB },
+  { key:'C', name:'Inference-first + grouped list', fn:variantC },
+];
+const variantParam = new URLSearchParams(location.search).get('variant') || (location.hash.match(/variant=([ABC])/) || [])[1];
+let current = Math.max(0, VARIANTS.findIndex(v => v.key === variantParam));
+const show = i => {
+  current = (i + VARIANTS.length) % VARIANTS.length;
+  const v = VARIANTS[current];
+  document.getElementById('swLabel').textContent = `${v.key} — ${v.name}`;
+  try { history.replaceState(null, '', `?variant=${v.key}`); } catch { location.hash = `variant=${v.key}`; }
+  v.fn();
+};
+document.getElementById('prev').onclick = () => show(current - 1);
+document.getElementById('next').onclick = () => show(current + 1);
+document.getElementById('addBtn').onclick = () => document.getElementById('overlay').style.display = 'flex';
+document.getElementById('closeBtn').onclick = () => document.getElementById('overlay').style.display = 'none';
+document.getElementById('overlay').onclick = e => { if (e.target.id === 'overlay') e.currentTarget.style.display = 'none'; };
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  if (e.key === 'ArrowLeft') show(current - 1);
+  if (e.key === 'ArrowRight') show(current + 1);
+});
+show(current);
+</script>
+</body>
+</html>
