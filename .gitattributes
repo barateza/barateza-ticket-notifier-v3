@@ -8,12 +8,9 @@ jest.setup.js export-ignore
 __tests__/ export-ignore
 coverage/ export-ignore
 node_modules/ export-ignore
-package-lock.json export-ignore
 README.md export-ignore
 RELEASE.md export-ignore
 TESTING.md export-ignore
-PHASES.md export-ignore
-COVERAGE_SETUP.md export-ignore
 .github/ export-ignore
 .vscode/ export-ignore
 .idea/ export-ignore

@@ -16,8 +16,8 @@ Single-context repo (this repo):
 
 ```
 /
-├── CONTEXT.md          ← (not yet created)
-├── docs/adr/           ← (not yet created)
+├── CONTEXT.md
+├── docs/adr/
 │   └── ...
 └── src/
 ```

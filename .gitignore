@@ -48,6 +48,7 @@ ehthumbs.db
 # Playwright E2E
 .playwright-auth-data/
 playwright-report/
+/test-results*.json
 
 # AI / Agents / Specs
 /.agent
