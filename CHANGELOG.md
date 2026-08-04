@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.6.1] - 2026-08-04
 
 ### Changed
 - **Repo housekeeping**: removed stale Playwright `test-results*.json` artifacts from version control, cleaned up `.gitattributes` `export-ignore` rules, and added `CONTEXT.md` + `docs/adr/` (ADR records 0001–0003) to the repo.
