@@ -18,7 +18,7 @@ import {
     startSnoozeTimer,
     stopSnoozeTimer
 } from './popup-snooze.js';
-import { loadSettings, saveSettings, updateCustomSoundStatus } from './popup-settings.js';
+import { loadSettings, saveSettings, loadJiraCredentials, saveJiraCredentials } from './popup-settings.js';
 import {
     checkForUpdates,
     isNewerVersion
@@ -35,7 +35,8 @@ import {
     handleSaveEndpoint,
     toggleEndpoint,
     deleteEndpoint,
-    reindexEndpointElements
+    reindexEndpointElements,
+    updateProviderDetection
 } from './popup-endpoints.js';
 
 // Re-export sub-module functions for backward compatibility with tests
@@ -49,6 +50,8 @@ export {
     stopSnoozeTimer,
     loadSettings,
     saveSettings,
+    loadJiraCredentials,
+    saveJiraCredentials,
     loadEndpoints,
     handleTestEndpoint,
     testEndpoint,
@@ -61,6 +64,7 @@ export {
     toggleEndpoint,
     deleteEndpoint,
     reindexEndpointElements,
+    updateProviderDetection,
     checkForUpdates,
     isNewerVersion,
     handleFetchSound,
@@ -277,6 +281,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await loadNotifications();
         await updateStatus();
         await updateSnoozeStatus();
+        await loadJiraCredentials();
     } catch (error) {
         Logger.error('Error initializing popup:', error);
     } finally {
@@ -337,6 +342,20 @@ function setupEventListeners() {
     document.getElementById('importEndpointsBtn').addEventListener('click', handleImportEndpoints);
     document.getElementById('importFileInput').addEventListener('change', handleImportFileSelected);
 
+    // Live provider detection in the add-monitor modal
+    document.getElementById('endpointUrl').addEventListener('input', (e) => {
+        updateProviderDetection(e.target.value.trim());
+    });
+
+    // Jira credentials — save when a field loses focus (per-keystroke saves
+    // would rebuild the rows and destroy the focused input)
+    const jiraCredentialsList = document.getElementById('jiraCredentialsList');
+    if (jiraCredentialsList) {
+        jiraCredentialsList.addEventListener('change', () => {
+            saveJiraCredentials();
+        });
+    }
+
     // Snooze management
     document.getElementById('closeSnoozeModal').addEventListener('click', hideSnoozeModal);
     document.getElementById('cancelSnooze').addEventListener('click', hideSnoozeModal);
@@ -361,19 +380,19 @@ function setupEventListeners() {
         await loadNotifications();
     });
 
-    // Delegated actions for endpoints list
+    // Delegated actions for monitors list
     document.getElementById('endpointsList').addEventListener('click', async (e) => {
         const toggleBtn = e.target.closest('.toggle-endpoint-btn');
         if (toggleBtn) {
-            const index = parseInt(toggleBtn.dataset.index, 10);
-            await toggleEndpoint(index);
+            const monitorId = toggleBtn.dataset.endpointId;
+            await toggleEndpoint(monitorId);
             return;
         }
 
         const deleteBtn = e.target.closest('.delete-endpoint-btn');
         if (deleteBtn) {
-            const index = parseInt(deleteBtn.dataset.index, 10);
-            await deleteEndpoint(index);
+            const monitorId = deleteBtn.dataset.endpointId;
+            await deleteEndpoint(monitorId);
             return;
         }
     });

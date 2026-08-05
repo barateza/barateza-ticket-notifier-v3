@@ -1,55 +1,50 @@
 // Shared validation utilities for Zendesk Ticket Monitor
+import {
+  getProvider,
+  detectProviderFromUrl
+} from './providers/provider-registry.js';
+
+export { detectProviderFromUrl };
 
 /**
- * Validate endpoint URL format
+ * Validate a monitor URL against its provider's rules.
+ * @param {string} url - URL to validate
+ * @param {string} [provider] - provider id; auto-detected from the URL when omitted
+ * @returns {object} { valid: boolean, error: string, provider?: string }
+ */
+export function validateMonitorUrl(url, provider) {
+  const detectedProvider = provider || detectProviderFromUrl(url);
+
+  if (!detectedProvider) {
+    return {
+      valid: false,
+      error: 'Could not detect a provider. Use a *.zendesk.com or *.atlassian.net search URL.',
+      provider: null
+    };
+  }
+
+  const result = getProvider(detectedProvider).validateUrl(url);
+  return { ...result, provider: detectedProvider };
+}
+
+/**
+ * Normalise a monitor URL into its canonical stored form (per provider).
+ * @param {string} url
+ * @param {string} provider
+ * @returns {string}
+ */
+export function normaliseMonitorUrl(url, provider) {
+  return getProvider(provider).normaliseUrl(url);
+}
+
+/**
+ * Validate endpoint URL format (Zendesk legacy — kept for compatibility;
+ * new code should use validateMonitorUrl).
  * @param {string} url - URL to validate
  * @returns {object} { valid: boolean, error: string }
  */
 export function validateEndpointUrl(url) {
-  if (!url || typeof url !== 'string') {
-    return { valid: false, error: 'URL is required' };
-  }
-
-  try {
-    const urlObj = new URL(url);
-    const hostname = urlObj.hostname;
-    const hostnameParts = hostname.split('.');
-
-    // Validate hostname is a Zendesk subdomain
-    const isValidZendeskDomain =
-      hostnameParts.length >= 3 &&
-      hostnameParts[hostnameParts.length - 2] === 'zendesk' &&
-      hostnameParts[hostnameParts.length - 1] === 'com' &&
-      hostnameParts[0].length > 0;
-
-    if (!isValidZendeskDomain) {
-      return {
-        valid: false,
-        error: 'URL must be a Zendesk domain (*.zendesk.com)'
-      };
-    }
-
-    // Validate URL is an API endpoint
-    const hasApiPath = urlObj.pathname.includes('/api/v2/search');
-    if (!hasApiPath) {
-      return {
-        valid: false,
-        error: 'URL must be a Zendesk API endpoint'
-      };
-    }
-
-    // Validate search query parameter exists
-    if (!urlObj.searchParams.has('query')) {
-      return {
-        valid: false,
-        error: 'URL must include a search query parameter'
-      };
-    }
-
-    return { valid: true };
-  } catch (_error) {
-    return { valid: false, error: 'Please enter a valid URL' };
-  }
+  return getProvider('zendesk').validateUrl(url);
 }
 
 /**

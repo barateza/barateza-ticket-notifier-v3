@@ -11,16 +11,20 @@ The Extension is designed to be privacy-first. **All data processing happens loc
 ### Zendesk Ticket Data
 The Extension reads your ticket counts and related ticket metadata from your Zendesk instance to provide you with notifications.
 
-### Authentication Data Requirements
-To function, the Extension requests **Host Permissions** for `*://*.zendesk.com/*`.
+### Jira (JSM) Ticket Data
+The Extension also reads ticket counts from your Jira Service Management (JSM) Cloud sites (`*.atlassian.net`) when you add Jira monitors. Counts are fetched via the Jira Cloud REST API (`search/approximate-count`).
 
-**Why we need this permission:**
-The Extension requires access to your Zendesk domain to fetch ticket counts via the Zendesk API (`search.json`) and authenticate securely using your existing, active session cookies.
+### Authentication Data Requirements
+To function, the Extension requests **Host Permissions** for `*://*.zendesk.com/*` and `*://*.atlassian.net/*`.
+
+**Why we need these permissions:**
+The Extension requires access to your Zendesk domain to fetch ticket counts via the Zendesk API (`search.json`) and authenticate securely using your existing, active session cookies. Jira sites are accessed using an **Atlassian API token** that you provide: the Extension sends it as HTTP Basic authentication to your Jira site only, and never to any other server.
 
 ## 2. Information Storage
 
-*   **Local Storage:** The Extension stores its configuration (such as your specific Zendesk sub-domain and notification preferences) locally on your device using Chrome's local storage API (`chrome.storage.local`).
-*   **No Remote Servers:** We do **not** transmit, store, or process any of your Zendesk data, personal information, or authentication cookies on any external or third-party servers. All operations are strictly local between your browser and the Zendesk API.
+*   **Local Storage:** The Extension stores its configuration (such as your specific Zendesk sub-domain, Jira sites, and notification preferences) locally on your device using Chrome's local storage API (`chrome.storage.local`).
+*   **Jira API tokens:** Your Atlassian email and API token are stored locally on your machine using `chrome.storage.local`. Chrome extension storage is not encrypted — anyone with access to your device and browser profile could read them, so treat the token as a credential. Tokens are **never** transmitted to us or to any server other than the Jira site you configured, and are sent only over HTTPS.
+*   **No Remote Servers:** We do **not** transmit, store, or process any of your Zendesk data, Jira data, personal information, or authentication cookies on any external or third-party servers. All operations are strictly local between your browser and the Zendesk/Jira APIs.
 
 ## 3. Disclosing Information
 

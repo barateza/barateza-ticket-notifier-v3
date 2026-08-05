@@ -6,7 +6,7 @@
 // ───────────────────────────────────────────────────────────────────────────────
 
 import Logger from './utils/logger.js';
-import { sendToSW, showError } from './popup-utils.js';
+import { sendToSW, showError, showSuccess } from './popup-utils.js';
 import { setLocal } from './utils/storage-service.js';
 
 function applyDarkMode(enabled) {
@@ -108,4 +108,92 @@ export function updateCustomSoundStatus(settings) {
             : '';
         testBtn.classList.add('hidden');
     }
+}
+
+// ─── Jira Credentials ─────────────────────────────────────────────────────────
+
+/**
+ * Load Jira credentials into the settings section. Sites are auto-listed
+ * from jira monitor hostnames (plus any manually entered sites).
+ */
+export async function loadJiraCredentials() {
+    const listEl = document.getElementById('jiraCredentialsList');
+    if (!listEl) return;
+
+    const { jiraCredentials = {} } = await chrome.storage.local.get(['jiraCredentials']);
+    const { monitors } = await chrome.storage.local.get(['monitors']);
+
+    const sites = new Set(Object.keys(jiraCredentials));
+    (Array.isArray(monitors) ? monitors : []).forEach((monitor) => {
+        if (monitor.provider === 'jira') {
+            try {
+                sites.add(new URL(monitor.url).hostname);
+            } catch {
+                // unparseable URL — ignore
+            }
+        }
+    });
+
+    if (sites.size === 0) {
+        listEl.innerHTML = '<div class="jira-credentials-empty">No Jira sites yet — add a Jira monitor first.</div>';
+        return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    [...sites].sort().forEach((site) => {
+        const entry = jiraCredentials[site] || {};
+        const hasCredentials = Boolean(entry.email && entry.token);
+        const row = document.createElement('div');
+        row.className = 'jira-cred-row';
+        row.dataset.site = site;
+        row.innerHTML = `
+            <div class="jira-cred-site">${escapeHtml(site)}</div>
+            <div class="jira-cred-fields">
+                <input type="text" class="jira-cred-email" placeholder="Atlassian email" value="${escapeHtml(entry.email || '')}">
+                <input type="password" class="jira-cred-token" placeholder="API token" value="${escapeHtml(entry.token || '')}">
+            </div>
+            <span class="jira-cred-status ${hasCredentials ? 'configured' : 'missing'}">
+                ${hasCredentials ? '✓ configured' : '○ missing'}
+            </span>
+        `;
+        fragment.appendChild(row);
+    });
+    listEl.replaceChildren(fragment);
+}
+
+/** Persist the Jira credentials rows to chrome.storage.local. */
+export async function saveJiraCredentials() {
+    const listEl = document.getElementById('jiraCredentialsList');
+    if (!listEl) return;
+
+    const jiraCredentials = {};
+    listEl.querySelectorAll('.jira-cred-row').forEach((row) => {
+        const site = row.dataset.site;
+        const email = row.querySelector('.jira-cred-email').value.trim();
+        const token = row.querySelector('.jira-cred-token').value.trim();
+        if (email || token) {
+            jiraCredentials[site] = { email, token };
+        }
+    });
+
+    try {
+        await setLocal({ jiraCredentials });
+        Logger.info('Jira credentials saved');
+        showSuccess('Jira credentials saved');
+        await loadJiraCredentials();
+    } catch (error) {
+        Logger.error('Failed to save Jira credentials:', error);
+        showError('Failed to save Jira credentials');
+    }
+}
+
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return String(text).replace(/[&<>"']/g, (m) => map[m]);
 }

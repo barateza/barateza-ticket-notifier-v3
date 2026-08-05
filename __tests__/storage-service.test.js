@@ -52,6 +52,12 @@ describe('StorageService', () => {
             Object.assign(mockLocalStorage, data);
             if (callback) callback();
         });
+
+        chrome.storage.local.remove.mockImplementation((keys, callback) => {
+            if (typeof keys === 'string') keys = [keys];
+            keys.forEach(k => { delete mockLocalStorage[k]; });
+            if (callback) callback();
+        });
     });
 
     // ─── getSession ─────────────────────────────────────────────────────
@@ -211,6 +217,73 @@ describe('StorageService', () => {
 
             await expect(storageService.setLocal({ key: 'val' })).rejects.toThrow('Crash');
             expect(Logger.error).toHaveBeenCalled();
+        });
+    });
+
+    // ─── getMonitors / saveMonitors (multi-provider) ────────────────────
+
+    describe('getMonitors()', () => {
+        test('returns monitors when the monitors key exists', async () => {
+            mockLocalStorage = {
+                monitors: [
+                    { id: 1, name: 'A', url: 'https://a.zendesk.com/api/v2/search.json?query=q', enabled: true, provider: 'zendesk' },
+                    { id: 2, name: 'B', url: 'https://x.atlassian.net/issues/?jql=q', enabled: false, provider: 'jira' }
+                ]
+            };
+
+            const result = await storageService.getMonitors();
+            expect(result).toHaveLength(2);
+            expect(result[0].provider).toBe('zendesk');
+            expect(result[1].provider).toBe('jira');
+        });
+
+        test('migrates legacy endpoints key with provider defaulting to zendesk', async () => {
+            mockLocalStorage = {
+                endpoints: [
+                    { id: 1, name: 'Legacy', url: 'https://a.zendesk.com/api/v2/search.json?query=q', enabled: true }
+                ]
+            };
+
+            const result = await storageService.getMonitors();
+            expect(result).toHaveLength(1);
+            expect(result[0].provider).toBe('zendesk');
+            expect(result[0].name).toBe('Legacy');
+            // Migration persisted: monitors written, endpoints removed
+            expect(mockLocalStorage.monitors).toHaveLength(1);
+            expect(mockLocalStorage.endpoints).toBeUndefined();
+        });
+
+        test('sanitises invalid provider values back to zendesk', async () => {
+            mockLocalStorage = {
+                monitors: [
+                    { id: 1, name: 'A', url: 'https://a.zendesk.com/api/v2/search.json?query=q', enabled: true, provider: 'nope' }
+                ]
+            };
+
+            const result = await storageService.getMonitors();
+            expect(result[0].provider).toBe('zendesk');
+        });
+
+        test('returns empty array when neither key exists', async () => {
+            const result = await storageService.getMonitors();
+            expect(result).toEqual([]);
+        });
+    });
+
+    describe('saveMonitors()', () => {
+        test('writes the monitors key', async () => {
+            const monitors = [{ id: 1, name: 'A', url: 'https://a.zendesk.com/api/v2/search.json?query=q', enabled: true, provider: 'zendesk' }];
+            await storageService.saveMonitors(monitors);
+            expect(mockLocalStorage.monitors).toEqual(monitors);
+        });
+    });
+
+    describe('removeLocal()', () => {
+        test('removes the given keys from local storage', async () => {
+            mockLocalStorage = { endpoints: [1, 2], settings: { a: 1 } };
+            await storageService.removeLocal(['endpoints']);
+            expect(mockLocalStorage.endpoints).toBeUndefined();
+            expect(mockLocalStorage.settings).toEqual({ a: 1 });
         });
     });
 });

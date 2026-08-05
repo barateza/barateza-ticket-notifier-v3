@@ -1,17 +1,27 @@
-// ─── Endpoint Import ──────────────────────────────────────────────────────────
+// ─── Monitor Import ──────────────────────────────────────────────────────────
 //
-// Parses, validates, and prepares imported endpoint configurations.
+// Parses, validates, and prepares imported monitor configurations.
 // I/O-free pipeline: parse → validate → prepare.
+// Accepts schema v1 (`endpoints`, no provider — defaults to zendesk) and
+// schema v2 (`monitors`, explicit provider). Entries with an unknown
+// provider are skipped with a clear message.
 // ───────────────────────────────────────────────────────────────────────────────
 
-import { SCHEMA_VERSION } from './endpoint-schema.js';
-import { validateEndpointUrl, validateEndpointName, checkForDuplicates } from './validators.js';
+import { SCHEMA_VERSION, LEGACY_SCHEMA_VERSION } from './endpoint-schema.js';
+import {
+    validateEndpointName,
+    checkForDuplicates,
+    validateMonitorUrl,
+    normaliseMonitorUrl
+} from './validators.js';
+
+const VALID_PROVIDERS = ['zendesk', 'jira'];
 
 // ─── Parse ────────────────────────────────────────────────────────────────────
 
 /**
  * Parse and structurally validate raw file content from an imported JSON file.
- * Does NOT validate individual endpoints — call validateImportedEndpoints() for that.
+ * Does NOT validate individual monitors — call validateImportedEndpoints() for that.
  *
  * @param {string} fileContent - Raw string from FileReader
  * @returns {{ success: boolean, data?: object, error?: string }}
@@ -28,19 +38,22 @@ export function parseImportFile(fileContent) {
         return { success: false, error: 'Invalid file format. Expected a JSON object, got ' + (Array.isArray(parsed) ? 'an array' : typeof parsed) + '.' };
     }
 
-    if (parsed.version !== SCHEMA_VERSION) {
+    // Accept schema v1 and v2; anything else is unsupported.
+    if (parsed.version !== SCHEMA_VERSION && parsed.version !== LEGACY_SCHEMA_VERSION) {
         return {
             success: false,
             error: 'Unsupported file format. Please use a file exported from this extension.'
         };
     }
 
-    if (!Array.isArray(parsed.endpoints)) {
-        return { success: false, error: 'Invalid file format. Missing or invalid "endpoints" array in the file.' };
+    const listKey = parsed.version === LEGACY_SCHEMA_VERSION ? 'endpoints' : 'monitors';
+
+    if (!Array.isArray(parsed[listKey])) {
+        return { success: false, error: `Invalid file format. Missing or invalid "${listKey}" array in the file.` };
     }
 
-    if (parsed.endpoints.length === 0) {
-        return { success: false, error: 'No endpoints found in file.' };
+    if (parsed[listKey].length === 0) {
+        return { success: false, error: `No ${listKey === 'monitors' ? 'monitors' : 'endpoints'} found in file.` };
     }
 
     return { success: true, data: parsed };
@@ -49,20 +62,24 @@ export function parseImportFile(fileContent) {
 // ─── Validate ─────────────────────────────────────────────────────────────────
 
 /**
- * Validate each endpoint from a parsed import file against existing validators
- * and check for duplicates against currently stored endpoints.
+ * Validate each monitor from a parsed import file against existing validators
+ * and check for duplicates against currently stored monitors.
  *
- * Extra/unknown fields on each endpoint object are silently ignored.
+ * Entries are validated against their declared provider (v2) or defaulted to
+ * zendesk (v1 / missing provider). Unknown providers are skipped. URLs are
+ * normalised to their provider's canonical form.
  *
- * @param {Array<object>} importedEndpoints - Raw endpoint objects from parsed file
- * @param {Array<object>} existingEndpoints - Currently stored endpoints
+ * Extra/unknown fields on each monitor object are silently ignored.
+ *
+ * @param {Array<object>} importedMonitors - Raw monitor objects from parsed file
+ * @param {Array<object>} existingMonitors - Currently stored monitors
  * @returns {{ valid: Array, skipped: Array<string> }}
  */
-export function validateImportedEndpoints(importedEndpoints, existingEndpoints) {
+export function validateImportedEndpoints(importedMonitors, existingMonitors) {
     const valid = [];
     const skipped = [];
 
-    for (const raw of importedEndpoints) {
+    for (const raw of importedMonitors) {
         if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
             skipped.push('Skipped entry with invalid structure');
             continue;
@@ -72,26 +89,43 @@ export function validateImportedEndpoints(importedEndpoints, existingEndpoints) 
         const url = typeof raw.url === 'string' ? raw.url.trim() : '';
         const enabled = 'enabled' in raw ? Boolean(raw.enabled) : true;
 
+        // Provider: explicit (v2) or defaulted to zendesk (v1); unknown → skip.
+        const provider = raw.provider === undefined ? 'zendesk' : raw.provider;
+        if (!VALID_PROVIDERS.includes(provider)) {
+            skipped.push(`Skipped "${name || '(unnamed)'}": unknown provider "${raw.provider}"`);
+            continue;
+        }
+
         const nameResult = validateEndpointName(name);
         if (!nameResult.valid) {
             skipped.push(`Skipped "${name || '(unnamed)'}": ${nameResult.error}`);
             continue;
         }
 
-        const urlResult = validateEndpointUrl(url);
+        const urlResult = validateMonitorUrl(url, provider);
         if (!urlResult.valid) {
             skipped.push(`Skipped "${name}": ${urlResult.error}`);
             continue;
         }
 
-        const allEndpoints = [...existingEndpoints, ...valid];
-        const dupResult = checkForDuplicates(allEndpoints, name, url);
+        // Normalise first so the duplicate check compares like-for-like
+        // (stored monitors hold the canonical URL; a raw Jira board URL and
+        // its canonical /issues/?jql= form must not both slip through).
+        const normalisedUrl = normaliseMonitorUrl(url, provider);
+
+        const allMonitors = [...existingMonitors, ...valid];
+        const dupResult = checkForDuplicates(allMonitors, name, normalisedUrl);
         if (dupResult.duplicate) {
             skipped.push(`Skipped "${name}": already exists`);
             continue;
         }
 
-        valid.push({ name, url, enabled });
+        valid.push({
+            name,
+            url: normalisedUrl,
+            enabled,
+            provider
+        });
     }
 
     return { valid, skipped };
@@ -100,19 +134,20 @@ export function validateImportedEndpoints(importedEndpoints, existingEndpoints) 
 // ─── Prepare ──────────────────────────────────────────────────────────────────
 
 /**
- * Assign runtime fields (id, createdAt) to a list of validated endpoint objects.
+ * Assign runtime fields (id, createdAt) to a list of validated monitor objects.
  * Uses Date.now() + array index offset to prevent ID collisions within a batch.
  *
- * @param {Array<{name: string, url: string, enabled: boolean}>} validEndpoints
- * @returns {Array<{id: number, name: string, url: string, enabled: boolean, createdAt: number}>}
+ * @param {Array<{name: string, url: string, enabled: boolean, provider: string}>} validMonitors
+ * @returns {Array<{id: number, name: string, url: string, enabled: boolean, provider: string, createdAt: number}>}
  */
-export function prepareEndpointsForImport(validEndpoints) {
+export function prepareEndpointsForImport(validMonitors) {
     const now = Date.now();
-    return validEndpoints.map((endpoint, index) => ({
+    return validMonitors.map((monitor, index) => ({
         id: now + index,
-        name: endpoint.name,
-        url: endpoint.url,
-        enabled: endpoint.enabled,
+        name: monitor.name,
+        url: monitor.url,
+        enabled: monitor.enabled,
+        provider: monitor.provider,
         createdAt: now
     }));
 }

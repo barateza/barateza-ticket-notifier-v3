@@ -1,22 +1,27 @@
 // ─── RateLimitService ─────────────────────────────────────────────────────────
 //
-// Encapsulates Zendesk API rate-limit state: detection, backoff scheduling,
-// and alarm management.
+// Encapsulates provider API rate-limit state: detection, backoff scheduling,
+// and alarm management. State is keyed per provider (and effectively per site
+// host via the provider key scope) so a throttled Jira site pauses Jira
+// polling only — Zendesk keeps running.
 //
-// Interface (3 methods):
-//   isLimited()    → boolean
-//   record(header) → void  (parse Retry-After, schedule resume)
-//   clear()        → void  (reset state)
+// Interface:
+//   isLimited(provider?) → boolean (no arg: any provider)
+//   record(provider, header) → void  (parse Retry-After, schedule resume)
+//                              — legacy: record(header) == record('zendesk', header)
+//   clear()        → void  (reset all provider state)
+//   rescheduleIfLimited() → void  (recreate the resume alarm if any limited)
 //
 // Internal:
-//   resumeAtMs        — timestamp when rate limit lifts
-//   parseRetryAfter   — Retry-After header parser
+//   resumeAtByProvider — Map<provider, timestamp when its limit lifts>
+//   parseRetryAfter    — Retry-After header parser
 
 import Logger from './logger.js';
 
 const MIN_ALARM_DELAY_MINUTES = 1 / 60; // 1 second in minutes for one-shot resume alarms
 
-let resumeAtMs = null;
+/** Map<providerId, number> — absolute resume timestamps per provider */
+const resumeAtByProvider = new Map();
 
 /**
  * Internal: parse a Retry-After HTTP header value.
@@ -40,49 +45,81 @@ function parseRetryAfterMs(retryAfterHeader) {
 // ─── Exported API ──────────────────────────────────────────────────────────────
 
 /**
- * Check if the service is currently rate-limited.
+ * Check if a provider (or any provider) is currently rate-limited.
+ * @param {string} [provider] — provider id; omit to check all providers
  * @returns {boolean}
  */
-export function isLimited() {
-  return Boolean(resumeAtMs && Date.now() < resumeAtMs);
+export function isLimited(provider) {
+  if (provider) {
+    const resumeAt = resumeAtByProvider.get(provider);
+    return Boolean(resumeAt && Date.now() < resumeAt);
+  }
+  for (const resumeAt of resumeAtByProvider.values()) {
+    if (resumeAt && Date.now() < resumeAt) return true;
+  }
+  return false;
 }
 
 /**
- * Record a rate-limit response. Parses the Retry-After header, schedules
- * an alarm to resume, and logs the event.
- * @param {string} retryAfterHeader — value of the Retry-After response header
+ * Record a rate-limit response for a provider. Parses the Retry-After
+ * header, schedules an alarm to resume, and logs the event.
+ * @param {string} providerOrHeader — provider id, or the Retry-After header
+ *                                   (legacy call form → zendesk provider)
+ * @param {string} [retryAfterHeader] — value of the Retry-After header
  */
-export function record(retryAfterHeader) {
-  const parsed = parseRetryAfterMs(retryAfterHeader);
+export function record(providerOrHeader, retryAfterHeader) {
+  const provider = retryAfterHeader !== undefined ? providerOrHeader : 'zendesk';
+  const header = retryAfterHeader !== undefined ? retryAfterHeader : providerOrHeader;
+
+  const parsed = parseRetryAfterMs(header);
   if (!parsed || parsed <= Date.now()) return;
 
-  if (resumeAtMs && resumeAtMs >= parsed) return; // already waiting at least this long
+  const existing = resumeAtByProvider.get(provider);
+  if (existing && existing >= parsed) return; // already waiting at least this long
 
-  resumeAtMs = parsed;
+  resumeAtByProvider.set(provider, parsed);
+  createResumeAlarm();
+  Logger.info(`${provider} rate limit active, pausing ${provider} monitoring until:`, new Date(parsed));
+}
+
+/**
+ * Internal: (re)create the rateLimitResume alarm for the soonest resume
+ * across all providers, so an earlier limit is not over-paused by a later one.
+ */
+function createResumeAlarm() {
+  let soonest = Infinity;
+  for (const resumeAt of resumeAtByProvider.values()) {
+    if (resumeAt && resumeAt < soonest) soonest = resumeAt;
+  }
+  if (!Number.isFinite(soonest)) return;
 
   chrome.alarms.clear('ticketCheck');
   chrome.alarms.create('rateLimitResume', {
-    delayInMinutes: Math.max(MIN_ALARM_DELAY_MINUTES, (resumeAtMs - Date.now()) / 60000)
+    delayInMinutes: Math.max(MIN_ALARM_DELAY_MINUTES, (soonest - Date.now()) / 60000)
   });
-  Logger.info('Zendesk rate limit active, pausing monitoring until:', new Date(resumeAtMs));
 }
 
 /**
- * Clear the rate-limit state. Called when the rateLimitResume alarm fires.
- * Does NOT restart monitoring — the caller (background alarm handler) does that.
+ * Clear the rate-limit state for all providers. Called when the
+ * rateLimitResume alarm fires. Does NOT restart monitoring — the caller
+ * (background alarm handler) does that.
  */
 export function clear() {
-  resumeAtMs = null;
+  resumeAtByProvider.clear();
 }
 
 /**
- * If still rate-limited, recreate the rateLimitResume alarm.
+ * If any provider is still rate-limited, recreate the rateLimitResume alarm.
  * Called from startMonitoring() when the SW re-initialises while rate-limited.
  */
 export function rescheduleIfLimited() {
   if (!isLimited()) return;
+  let soonest = Infinity;
+  for (const resumeAt of resumeAtByProvider.values()) {
+    if (resumeAt && resumeAt < soonest) soonest = resumeAt;
+  }
   chrome.alarms.create('rateLimitResume', {
-    delayInMinutes: Math.max(MIN_ALARM_DELAY_MINUTES, (resumeAtMs - Date.now()) / 60000)
+    delayInMinutes: Math.max(MIN_ALARM_DELAY_MINUTES, (soonest - Date.now()) / 60000)
   });
-  Logger.info('Monitoring remains paused due to active Zendesk rate limiting');
+  Logger.info('Monitoring remains paused for rate-limited provider(s)');
 }
