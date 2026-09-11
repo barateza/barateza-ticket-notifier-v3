@@ -257,13 +257,17 @@ zendesk-ticket-monitor/
 │   └── icon128.png        # 128x128 icon
 ├── utils/
 │   ├── cookie-service.js       # Zendesk cookie retrieval
-│   ├── endpoint-io.js          # Import/export endpoints
+│   ├── endpoint-export.js      # Import/export endpoints (serialise)
+│   ├── endpoint-import.js      # Import/export endpoints (parse + merge)
+│   ├── endpoint-schema.js      # Import/export schema version
+│   ├── endpoint-source.js      # Reads an Endpoint (the only fetcher)
 │   ├── logger.js               # Logging utility
 │   ├── message-router.js       # Message routing
 │   ├── monitor.js              # Monitoring orchestration
 │   ├── notification-manager.js # Notification lifecycle
 │   ├── poller.js               # Endpoint polling logic
 │   ├── rate-limit-service.js   # Rate limit tracking
+│   ├── settings.js             # Settings defaults, migration, persistence
 │   ├── snooze-service.js       # Notification snooze
 │   ├── storage-service.js      # Storage wrappers
 │   └── validators.js           # URL/settings validation

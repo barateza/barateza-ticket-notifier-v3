@@ -63,11 +63,15 @@ pnpm test:e2e       # Run E2E tests (requires auth setup)
 ├── manifest.json           # Extension declaration
 ├── utils/
 │   ├── cookie-service.js       # Zendesk cookie auth
-│   ├── endpoint-io.js          # Import/export endpoints
+│   ├── endpoint-export.js      # Import/export endpoints (serialise)
+│   ├── endpoint-import.js      # Import/export endpoints (parse + merge)
+│   ├── endpoint-schema.js      # Import/export schema version
+│   ├── endpoint-source.js      # Reads an Endpoint (the only fetcher)
 │   ├── logger.js               # Logging utility
 │   ├── message-router.js       # Message routing (BG ↔ popup)
 │   ├── notification-manager.js # Notification lifecycle
 │   ├── rate-limit-service.js   # API rate-limit tracking
+│   ├── settings.js             # Settings defaults, migration, persistence
 │   ├── snooze-service.js       # Per-endpoint snooze
 │   └── validators.js           # URL/settings validation
 └── __tests__/              # Tests (Jest + Playwright E2E)
@@ -126,7 +130,7 @@ The project has **159 unit tests** across 13 test files:
 | `__tests__/popup-unit.test.js` | Popup unit tests |
 | `__tests__/integration.test.js` | Cross-module workflows |
 | `__tests__/cookie-service.test.js` | Cookie retrieval |
-| `__tests__/endpoint-io.test.js` | Import/export endpoints |
+| `__tests__/endpoint-import-export.test.js` | Import/export endpoints |
 | `__tests__/message-router.test.js` | Message routing |
 | `__tests__/notification-manager.test.js` | Notification lifecycle |
 | `__tests__/rate-limit-service.test.js` | Rate limiting |

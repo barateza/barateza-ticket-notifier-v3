@@ -43,7 +43,7 @@ Time:           ~5.9 seconds
 | `__tests__/popup-unit.test.js` | 6 | Popup unit tests |
 | `__tests__/integration.test.js` | 20 | Cross-module workflows |
 | `__tests__/cookie-service.test.js` | 5 | Cookie retrieval |
-| `__tests__/endpoint-io.test.js` | 17 | Import/export endpoints |
+| `__tests__/endpoint-import-export.test.js` | 35 | Import/export endpoints |
 | `__tests__/message-router.test.js` | 8 | Message routing |
 | `__tests__/notification-manager.test.js` | 13 | Notification lifecycle |
 | `__tests__/rate-limit-service.test.js` | 7 | Rate limiting |
@@ -60,7 +60,6 @@ Time:           ~5.9 seconds
 | `popup.js` | 10.02% | 7.64% | 14.28% | 10.24% |
 | `offscreen.js` | 86.66% | 60% | 50% | 86.66% |
 | `utils/cookie-service.js` | 100% | 100% | 100% | 100% |
-| `utils/endpoint-io.js` | 100% | 93.75% | 100% | 100% |
 | `utils/message-router.js` | 100% | 75% | 100% | 100% |
 | `utils/notification-manager.js` | 78.72% | 80% | 84.61% | 77.77% |
 | `utils/rate-limit-service.js` | 92.3% | 85% | 100% | 95.45% |

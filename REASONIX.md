@@ -44,7 +44,8 @@ pnpm run lint:fix  # auto-fix
 | Module | Responsibility |
 |--------|---------------|
 | `monitor.js` | Alarm creation, badge updates, orchestration of polling cycle |
-| `poller.js` | Iterates enabled endpoints, fetches Zendesk API, compares counts, dispatches notifications |
+| `poller.js` | Iterates enabled endpoints, decides what an observed count means (compare, notify), dispatches notifications |
+| `endpoint-source.js` | The only module that reads an Endpoint: URL shape, auth cookies, request headers, error/rate-limit taxonomy, response shape. Returns one outcome value (`ok`, `unauthenticated`, `rate-limited`, `timed-out`, `malformed`, `http-error`, `network-error`) |
 | `notification-manager.js` | Sound playback (beep/MP3), browser notifications, click-to-navigate URL mapping |
 | `cookie-service.js` | Zendesk cookie retrieval with 5-min in-memory cache |
 | `message-router.js` | Handler registry replacing switch statements — each action string maps to a testable handler |
@@ -52,7 +53,7 @@ pnpm run lint:fix  # auto-fix
 | `snooze-service.js` | Persistent snooze with alarm-based wake, remaining-time tracking |
 | `rate-limit-service.js` | 429 Retry-After parsing, exponential backoff, reschedule |
 | `logger.js` | Configurable logging (console + debug mode toggle) |
-| `endpoint-io.js` | Import/export endpoints as JSON files |
+| `settings.js` | Owns the settings object: defaults, migration, `load()`/`patch()`. Shared by the service worker and the popup |
 | `endpoint-schema.js` | Validation/sanitisation for endpoint objects |
 | `validators.js` | URL format, settings bounds, import validation |
 | `endpoint-export.js` | Serialisation helpers for endpoint export |
@@ -111,7 +112,7 @@ pnpm run lint:fix  # auto-fix
 - Cookies are sent as `Cookie` header in API requests + `credentials: 'include'`
 
 ### Adding Features
-1. **New settings**: Add field to defaults in `background.js`, UI control in `popup.html`, load/save in `popup-settings.js`
+1. **New settings**: Add the field to `DEFAULTS` in `utils/settings.js`, then add a UI control in `popup.html`. Both contexts (`background.js`, `popup-settings.js`) get defaults, migration and persistence from `utils/settings.js` — never read `chrome.storage.local.settings` directly, and never re-express a default at a call site.
 2. **New message actions**: Register handler via `router.register()` in `background.js`; call from popup via `sendToSW()`
 3. **Notification changes**: Edit `notification-manager.js` — notification format, sound type, click action
 4. **Audio changes**: Edit `offscreen.js` — supports `beep` (oscillator) and `mp3` (fetched + decoded). New types need a branch in `playAudio()`
@@ -123,8 +124,9 @@ pnpm run lint:fix  # auto-fix
 
 ### Endpoint Validation
 - URLs must be full Zendesk API search endpoints (e.g., `https://domain.zendesk.com/api/v2/search.json?query=...`)
-- **Extracting domain**: `new URL(endpoint.url).hostname`
-- **Response parsing**: Expected JSON response has `count` property (integer)
+- **The rule lives in `utils/endpoint-source.js`**: `describeEndpointUrl(url)` returns `{ok}` or `{ok: false, reason}`. `utils/validators.js` only maps those reasons to user-facing copy — do not re-derive the URL shape anywhere else.
+- **Reading an Endpoint**: call `readEndpoint(url)`; it handles the domain, cookies, headers, timeout, 429 and JSON parsing, and returns one outcome (`ok` / `unauthenticated` / `rate-limited` / `timed-out` / `malformed` / `http-error` / `network-error`). Never `fetch` a Zendesk URL directly.
+- **Response parsing**: the outcome carries `count` (always a number) and `hasCount` (whether the API really sent a number); `results` is the raw search results array.
 
 ## Zendesk API Search Syntax
 
