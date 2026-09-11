@@ -14,8 +14,7 @@
 import Logger from './logger.js';
 import { getSession, setSession } from './storage-service.js';
 import { DEFAULT_DASHBOARD_URL } from './endpoint-source.js';
-
-let creatingOffscreenPromise = null;
+import { playAudio } from './offscreen-document.js';
 
 // ─── Notification History (session storage) ────────────────────────────────────
 
@@ -83,32 +82,10 @@ async function saveNotificationMap(map) {
   await setSession({ notificationEndpointMap: Array.from(map.entries()) });
 }
 
-// ─── Offscreen / Sound ─────────────────────────────────────────────────────────
-
-async function createOffscreen() {
-  if (await chrome.offscreen.hasDocument()) return;
-  if (creatingOffscreenPromise) {
-    await creatingOffscreenPromise;
-    return;
-  }
-
-  creatingOffscreenPromise = chrome.offscreen.createDocument({
-    url: 'offscreen.html',
-    reasons: ['AUDIO_PLAYBACK'],
-    justification: 'Play notification sounds for new Zendesk tickets'
-  });
-
-  try {
-    await creatingOffscreenPromise;
-  } finally {
-    creatingOffscreenPromise = null;
-  }
-}
+// ─── Sound ─────────────────────────────────────────────────────────────────────
 
 async function playSound(settings) {
   try {
-    await createOffscreen();
-
     const playOptions = { volume: 0.3 };
 
     if (settings?.customSoundEnabled && settings?.customSoundMp3) {
@@ -119,7 +96,9 @@ async function playSound(settings) {
       playOptions.type = 'beep';
     }
 
-    await chrome.runtime.sendMessage({ play: playOptions });
+    // The offscreen document singleton lives in utils/offscreen-document.js,
+    // shared with the popup's "test sound" action.
+    await playAudio(playOptions);
     Logger.info('Played notification sound');
   } catch (error) {
     Logger.error('Error playing sound:', error);
