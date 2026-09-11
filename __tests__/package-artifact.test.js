@@ -28,13 +28,30 @@ function have(bin) {
   }
 }
 
-const canPackage = have('zip') && have('unzip');
+/**
+ * Do NOT skip this suite when the tools are missing.
+ * A guard that silently does not run is the same failure it exists to catch: a
+ * pipeline reporting success while omitting the work. Fail loudly, and say what
+ * to do about it.
+ */
+function requireTool(bin) {
+  if (!have(bin)) {
+    throw new Error(
+      `\`${bin}\` is required by this suite — it builds and inspects the real ` +
+      `release artifact. Install it rather than letting the guard go inert ` +
+      `(macOS and Linux ship it by default; on Windows use Git Bash or WSL).`
+    );
+  }
+}
 
-(canPackage ? describe : describe.skip)('packaged release artifact', () => {
+describe('packaged release artifact', () => {
     let listing;
     let zipPath;
 
     beforeAll(() => {
+        requireTool('zip');
+        requireTool('unzip');
+
         execFileSync('bash', ['scripts/package.sh'], { cwd: ROOT, stdio: 'pipe' });
 
         const version = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf8')).version;
@@ -101,6 +118,13 @@ const canPackage = have('zip') && have('unzip');
 
     test('does not resurrect the removed duplicate module', () => {
         expect(has('utils/endpoint-io.js')).toBe(false);
+    });
+
+    test('ships no test files', () => {
+        // package.sh copies every .js under utils/, so a co-located test would be
+        // published verbatim. Assert none leaked in.
+        const shipped = listing.split('\n').filter((line) => /\.test\.js\s*$/.test(line));
+        expect(shipped).toEqual([]);
     });
 
     test('artifact version matches package.json', () => {
