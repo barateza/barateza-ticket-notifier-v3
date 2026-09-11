@@ -12,6 +12,7 @@
   ],
   "host_permissions": [
     "*://*.zendesk.com/*",
+    "*://*.atlassian.net/*",
     "https://api.github.com/*",
     "*://*.myinstants.com/*"
   ],

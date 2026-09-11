@@ -24,11 +24,23 @@ describe('popup.js exported functions', () => {
       originalAddEventListener(type, listener, options);
     });
 
-    chrome.storage.local.get.mockImplementation((keys) => {
-      if (Array.isArray(keys) && keys.includes('endpoints')) {
-        return Promise.resolve({ endpoints });
-      }
-      return Promise.resolve({});
+    chrome.storage.local.get.mockImplementation((keys, callback) => {
+      const result = {};
+      const list = typeof keys === 'string' ? [keys] : keys;
+      list.forEach(k => { if (k === 'endpoints' || k === 'monitors') result[k] = endpoints; });
+      if (callback) callback(result);
+      return Promise.resolve(result);
+    });
+
+    chrome.storage.local.set.mockImplementation((data, callback) => {
+      if (data.monitors) endpoints.splice(0, endpoints.length, ...data.monitors);
+      if (callback) callback();
+      return Promise.resolve();
+    });
+
+    chrome.storage.local.remove.mockImplementation((_keys, callback) => {
+      if (callback) callback();
+      return Promise.resolve();
     });
 
     chrome.runtime.sendMessage.mockResolvedValue({
@@ -95,10 +107,10 @@ describe('popup.js exported functions', () => {
     const result = await popup.testEndpoint(endpoints[0].url);
 
     expect(result.success).toBe(false);
-    expect(result.message).toContain('Rate limited by Zendesk');
+    expect(result.message).toContain('Rate limited');
   });
 
-  test('testEndpoint reports a bare HTTP status when the body is not the API shape', async () => {
+  test('testEndpoint reports the HTTP status when the response is not the API shape', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: false,
       status: 401,
@@ -108,6 +120,23 @@ describe('popup.js exported functions', () => {
     const popup = await import('../popup.js');
     const result = await popup.testEndpoint(endpoints[0].url);
 
-    expect(result).toEqual({ success: false, message: 'HTTP 401: Unauthorized' });
+    expect(result).toEqual({ success: false, message: 'HTTP 401' });
+  });
+
+  test('groupMonitorsByProvider groups non-contiguous providers correctly', async () => {
+    const { groupMonitorsByProvider } = await import('../popup-endpoints.js');
+    const monitors = [
+      { id: 1, name: 'Z1', provider: 'zendesk', url: 'https://a.zendesk.com/api/v2/search.json?query=q' },
+      { id: 2, name: 'J1', provider: 'jira', url: 'https://a.atlassian.net/issues/?jql=q' },
+      { id: 3, name: 'Z2', provider: 'zendesk', url: 'https://b.zendesk.com/api/v2/search.json?query=q' }
+    ];
+
+    const groups = groupMonitorsByProvider(monitors);
+
+    expect(groups).toHaveLength(2);
+    expect(groups[0].provider.id).toBe('zendesk');
+    expect(groups[0].monitors.map(m => m.id)).toEqual([1, 3]);
+    expect(groups[1].provider.id).toBe('jira');
+    expect(groups[1].monitors.map(m => m.id)).toEqual([2]);
   });
 });

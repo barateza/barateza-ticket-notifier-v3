@@ -1,33 +1,50 @@
 // Shared validation utilities for Zendesk Ticket Monitor
+import {
+  getProvider,
+  detectProviderFromUrl
+} from './providers/provider-registry.js';
 
-import { describeEndpointUrl } from './endpoint-source.js';
-
-// The URL *rule* ("what is a monitorable Endpoint URL") lives in
-// endpoint-source.js, next to the code that actually reads an Endpoint — so the
-// validation and the fetch can never drift apart. Only the user-facing wording
-// lives here.
-const URL_ERROR_MESSAGES = {
-  required: 'URL is required',
-  invalid: 'Please enter a valid URL',
-  'wrong-site': 'URL must be a Zendesk domain (*.zendesk.com)',
-  'wrong-path': 'URL must be a Zendesk API endpoint',
-  'missing-query': 'URL must include a search query parameter'
-};
+export { detectProviderFromUrl };
 
 /**
- * Validate endpoint URL format
+ * Validate a monitor URL against its provider's rules.
+ * @param {string} url - URL to validate
+ * @param {string} [provider] - provider id; auto-detected from the URL when omitted
+ * @returns {object} { valid: boolean, error: string, provider?: string }
+ */
+export function validateMonitorUrl(url, provider) {
+  const detectedProvider = provider || detectProviderFromUrl(url);
+
+  if (!detectedProvider) {
+    return {
+      valid: false,
+      error: 'Could not detect a provider. Use a *.zendesk.com or *.atlassian.net search URL.',
+      provider: null
+    };
+  }
+
+  const result = getProvider(detectedProvider).validateUrl(url);
+  return { ...result, provider: detectedProvider };
+}
+
+/**
+ * Normalise a monitor URL into its canonical stored form (per provider).
+ * @param {string} url
+ * @param {string} provider
+ * @returns {string}
+ */
+export function normaliseMonitorUrl(url, provider) {
+  return getProvider(provider).normaliseUrl(url);
+}
+
+/**
+ * Validate endpoint URL format (Zendesk legacy — kept for compatibility;
+ * new code should use validateMonitorUrl).
  * @param {string} url - URL to validate
  * @returns {object} { valid: boolean, error: string }
  */
 export function validateEndpointUrl(url) {
-  const { ok, reason } = describeEndpointUrl(url);
-  if (ok) {
-    return { valid: true };
-  }
-  return {
-    valid: false,
-    error: URL_ERROR_MESSAGES[reason] || 'Please enter a valid URL'
-  };
+  return getProvider('zendesk').validateUrl(url);
 }
 
 /**

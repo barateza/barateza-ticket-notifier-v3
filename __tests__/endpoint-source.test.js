@@ -1,14 +1,15 @@
 /**
  * endpoint-source.test.js
- * Unit tests for utils/endpoint-source.js — the module that owns reading a
- * ticket count from an Endpoint.
+ * Unit tests for utils/endpoint-source.js — the module that reads a ticket count
+ * for a Monitor, using the monitor's provider adapter for policy (polling URL,
+ * fetch options, count parsing) and owning the auth/error taxonomy itself.
  *
- * These tests are the payoff of the deepening: the outcome taxonomy is asserted
- * directly against a stubbed fetch, with no chrome messaging, no poller and no
- * storage involved. The poller's own tests only have to care about polling.
+ * These assert the outcome taxonomy directly, so the poller's own tests only have
+ * to care about what an observed count means.
  */
 
-import { describeEndpointUrl, readEndpoint, REQUEST_TIMEOUT_MS, DEFAULT_DASHBOARD_URL } from '../utils/endpoint-source.js';
+import { readMonitor, REQUEST_TIMEOUT_MS } from '../utils/endpoint-source.js';
+import { getProvider } from '../utils/providers/provider-registry.js';
 import * as cookieService from '../utils/cookie-service.js';
 
 jest.mock('../utils/logger.js', () => ({
@@ -18,119 +19,157 @@ jest.mock('../utils/logger.js', () => ({
     setDebugMode: jest.fn()
 }));
 
-const ENDPOINT_URL = 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+status:new';
+const ZENDESK = getProvider('zendesk');
+const JIRA = getProvider('jira');
+
+const ZENDESK_MONITOR = {
+    id: 1,
+    name: 'Zendesk Queue',
+    provider: 'zendesk',
+    url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+status:new'
+};
+const JIRA_MONITOR = {
+    id: 2,
+    name: 'Jira Queue',
+    provider: 'jira',
+    url: 'https://myco.atlassian.net/issues/?jql=project%20%3D%20SUPPORT'
+};
+
+function mockLocal(data) {
+    chrome.storage.local.get.mockImplementation((keys, callback) => {
+        const result = {};
+        const list = typeof keys === 'string' ? [keys] : keys;
+        list.forEach(k => { if (data[k] !== undefined) result[k] = data[k]; });
+        callback(result);
+    });
+}
+
+function mockFetchOk(payload) {
+    global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => payload
+    });
+}
 
 describe('endpoint-source', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // cookie-service caches per domain for 5 minutes, so each test must
+        // start from a cold cache for its chrome.cookies mock to take effect.
         cookieService.clearCache();
-        chrome.cookies.getAll.mockResolvedValue([{ name: 'session-id', value: 'abc123' }]);
-        global.fetch = jest.fn().mockResolvedValue({
-            ok: true,
-            status: 200,
-            json: async () => ({ count: 7, results: [{ id: 1 }] })
-        });
+        mockLocal({});
+        chrome.cookies.getAll.mockResolvedValue([
+            { name: '_zendesk_shared_session', value: 'abc' }
+        ]);
+        mockFetchOk({ count: 7, results: [] });
     });
 
-    // ─── describeEndpointUrl ──────────────────────────────────────────────────
+    // ─── Zendesk (cookie auth) ────────────────────────────────────────────────
 
-    describe('describeEndpointUrl()', () => {
-        test('accepts a Zendesk search Endpoint URL', () => {
-            expect(describeEndpointUrl(ENDPOINT_URL)).toEqual({ ok: true });
+    describe('zendesk monitors', () => {
+        test('reads the count and reports that the API really sent one', async () => {
+            const outcome = await readMonitor(ZENDESK_MONITOR, ZENDESK);
+
+            expect(outcome).toEqual({ ok: true, count: 7, hasCount: true });
         });
 
-        test.each([
-            ['', 'required'],
-            [undefined, 'required'],
-            [null, 'required'],
-            [42, 'required'],
-            ['not-a-url', 'invalid'],
-            ['https://example.com/api/v2/search.json?query=x', 'wrong-site'],
-            ['http://localhost/api/v2/search.json?query=x', 'wrong-site'],
-            ['https://zendesk.com/api/v2/search.json?query=x', 'wrong-site'],
-            ['https://cpanel.zendesk.com/api/v2/tickets.json', 'wrong-path'],
-            ['https://cpanel.zendesk.com/api/v2/search.json', 'missing-query']
-        ])('rejects %p with reason %p', (url, reason) => {
-            expect(describeEndpointUrl(url)).toEqual({ ok: false, reason });
-        });
-    });
-
-    // ─── readEndpoint: happy path ─────────────────────────────────────────────
-
-    describe('readEndpoint() success', () => {
-        test('reports the count and the results', async () => {
-            const outcome = await readEndpoint(ENDPOINT_URL);
-
-            expect(outcome.ok).toBe(true);
-            expect(outcome.status).toBe('ok');
-            expect(outcome.count).toBe(7);
-            expect(outcome.hasCount).toBe(true);
-            expect(outcome.results).toEqual([{ id: 1 }]);
-        });
-
-        test('sends the site cookies and mirrors the site credentials', async () => {
-            await readEndpoint(ENDPOINT_URL);
+        test('sends the site cookies without an Authorization header', async () => {
+            await readMonitor(ZENDESK_MONITOR, ZENDESK);
 
             const [url, options] = global.fetch.mock.calls[0];
-            expect(url).toBe(ENDPOINT_URL);
-            expect(options.credentials).toBe('include');
-            expect(options.headers.Cookie).toBe('session-id=abc123');
-            expect(options.headers.Accept).toBe('application/json');
+            expect(url).toBe(ZENDESK_MONITOR.url);
+            expect(options.headers.Cookie).toContain('_zendesk_shared_session=abc');
+            expect(options.headers.Authorization).toBeUndefined();
         });
 
-        test('coerces a numeric string count to a number', async () => {
-            global.fetch = jest.fn().mockResolvedValue({
-                ok: true,
-                status: 200,
-                json: async () => ({ count: '12' })
-            });
+        test('reports a missing count without failing the read', async () => {
+            mockFetchOk({ results: [] });
 
-            const outcome = await readEndpoint(ENDPOINT_URL);
-
-            expect(outcome.count).toBe(12);
-            expect(outcome.hasCount).toBe(false); // the API did not send a number
-        });
-
-        test('treats a missing count as zero without failing the read', async () => {
-            global.fetch = jest.fn().mockResolvedValue({
-                ok: true,
-                status: 200,
-                json: async () => ({ results: [] })
-            });
-
-            const outcome = await readEndpoint(ENDPOINT_URL);
+            const outcome = await readMonitor(ZENDESK_MONITOR, ZENDESK);
 
             expect(outcome.ok).toBe(true);
             expect(outcome.count).toBe(0);
             expect(outcome.hasCount).toBe(false);
         });
 
-        test('reports empty results when the payload has none', async () => {
-            global.fetch = jest.fn().mockResolvedValue({
-                ok: true,
-                status: 200,
-                json: async () => ({ count: 3 })
-            });
-
-            const outcome = await readEndpoint(ENDPOINT_URL);
-
-            expect(outcome.results).toEqual([]);
-        });
-    });
-
-    // ─── readEndpoint: failures ───────────────────────────────────────────────
-
-    describe('readEndpoint() failures', () => {
-        test('reports unauthenticated and never issues a request when there are no cookies', async () => {
+        test('reports unauthenticated and never fetches when there are no cookies', async () => {
             chrome.cookies.getAll.mockResolvedValue([]);
             global.fetch = jest.fn();
 
-            const outcome = await readEndpoint(ENDPOINT_URL);
+            const outcome = await readMonitor(ZENDESK_MONITOR, ZENDESK);
 
-            expect(outcome).toEqual({ ok: false, status: 'unauthenticated', domain: 'cpanel.zendesk.com' });
+            expect(outcome).toMatchObject({
+                ok: false,
+                status: 'unauthenticated',
+                errorType: 'auth'
+            });
+            expect(global.fetch).not.toHaveBeenCalled();
+        });
+    });
+
+    // ─── Jira (API-token auth) ────────────────────────────────────────────────
+
+    describe('jira monitors', () => {
+        beforeEach(() => {
+            mockLocal({
+                jiraCredentials: { 'myco.atlassian.net': { email: 'me@corp.com', token: 'tok' } }
+            });
+        });
+
+        test('polls the derived API URL with Basic auth and no cookies', async () => {
+            mockFetchOk({ count: 4, exact: true });
+
+            const outcome = await readMonitor(JIRA_MONITOR, JIRA);
+
+            const [url, options] = global.fetch.mock.calls[0];
+            expect(url).toContain('https://myco.atlassian.net/rest/api/3/search/approximate-count?jql=');
+            expect(options.headers.Authorization).toBe('Basic ' + btoa('me@corp.com:tok'));
+            expect(options.headers.Cookie).toBeUndefined();
+            expect(chrome.cookies.getAll).not.toHaveBeenCalled();
+            expect(outcome).toEqual({ ok: true, count: 4, hasCount: true });
+        });
+
+        test('falls back to `total` when the response has no `count`', async () => {
+            mockFetchOk({ total: 9 });
+
+            const outcome = await readMonitor(JIRA_MONITOR, JIRA);
+
+            expect(outcome).toEqual({ ok: true, count: 9, hasCount: true });
+        });
+
+        test('reports missingCredentials and never fetches without credentials', async () => {
+            mockLocal({});
+            global.fetch = jest.fn();
+
+            const outcome = await readMonitor(JIRA_MONITOR, JIRA);
+
+            expect(outcome).toMatchObject({
+                ok: false,
+                status: 'unauthenticated',
+                errorType: 'missingCredentials'
+            });
+            expect(outcome.message).toContain('No Jira credentials configured for myco.atlassian.net');
             expect(global.fetch).not.toHaveBeenCalled();
         });
 
+        test('treats a 401 as an authentication failure', async () => {
+            global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 401 });
+
+            const outcome = await readMonitor(JIRA_MONITOR, JIRA);
+
+            expect(outcome).toMatchObject({
+                ok: false,
+                status: 'unauthenticated',
+                errorType: 'auth',
+                retryable: false
+            });
+        });
+    });
+
+    // ─── Shared failure taxonomy ──────────────────────────────────────────────
+
+    describe('failure taxonomy', () => {
         test('reports rate-limited with the Retry-After header verbatim', async () => {
             global.fetch = jest.fn().mockResolvedValue({
                 ok: false,
@@ -138,43 +177,38 @@ describe('endpoint-source', () => {
                 headers: { get: (key) => (key === 'Retry-After' ? '60' : null) }
             });
 
-            const outcome = await readEndpoint(ENDPOINT_URL);
+            const outcome = await readMonitor(ZENDESK_MONITOR, ZENDESK);
 
-            expect(outcome.status).toBe('rate-limited');
-            expect(outcome.retryAfter).toBe('60');
-            expect(outcome.retryable).toBeFalsy();
+            expect(outcome).toMatchObject({ status: 'rate-limited', errorType: 'rateLimit', retryAfter: '60' });
         });
 
-        test('reports rate-limited with a null retryAfter when the header is missing', async () => {
+        test('reports a null retryAfter when the header is absent', async () => {
             global.fetch = jest.fn().mockResolvedValue({
-                ok: false,
-                status: 429,
-                headers: { get: () => null }
+                ok: false, status: 429, headers: { get: () => null }
             });
 
-            expect((await readEndpoint(ENDPOINT_URL)).retryAfter).toBeNull();
+            expect((await readMonitor(ZENDESK_MONITOR, ZENDESK)).retryAfter).toBeNull();
         });
 
         test('marks 5xx as retryable and 4xx as not', async () => {
-            global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 503, statusText: 'Service Unavailable' });
-            const serverError = await readEndpoint(ENDPOINT_URL);
+            global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 503 });
+            const server = await readMonitor(ZENDESK_MONITOR, ZENDESK);
 
-            global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 404, statusText: 'Not Found' });
-            const clientError = await readEndpoint(ENDPOINT_URL);
+            global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 404 });
+            const client = await readMonitor(ZENDESK_MONITOR, ZENDESK);
 
-            expect(serverError).toMatchObject({ status: 'http-error', httpStatus: 503, retryable: true });
-            expect(clientError).toMatchObject({ status: 'http-error', httpStatus: 404, retryable: false });
+            expect(server).toMatchObject({ status: 'http-error', errorType: 'http', httpStatus: 503, retryable: true });
+            expect(client).toMatchObject({ status: 'http-error', errorType: 'http', httpStatus: 404, retryable: false });
         });
 
-        test('reports timed-out for a TimeoutError, and does not retry it', async () => {
+        test('reports timed-out for a TimeoutError and does not retry it', async () => {
             const timeoutError = new Error('signal timed out');
             timeoutError.name = 'TimeoutError';
             global.fetch = jest.fn().mockRejectedValue(timeoutError);
 
-            const outcome = await readEndpoint(ENDPOINT_URL);
+            const outcome = await readMonitor(ZENDESK_MONITOR, ZENDESK);
 
-            expect(outcome.status).toBe('timed-out');
-            expect(outcome.retryable).toBeFalsy();
+            expect(outcome).toMatchObject({ status: 'timed-out', errorType: 'network', retryable: false });
         });
 
         test('reports timed-out for an AbortError too', async () => {
@@ -182,17 +216,15 @@ describe('endpoint-source', () => {
             abortError.name = 'AbortError';
             global.fetch = jest.fn().mockRejectedValue(abortError);
 
-            expect((await readEndpoint(ENDPOINT_URL)).status).toBe('timed-out');
+            expect((await readMonitor(ZENDESK_MONITOR, ZENDESK)).status).toBe('timed-out');
         });
 
         test('reports network-error as retryable', async () => {
             global.fetch = jest.fn().mockRejectedValue(new Error('Failed to fetch'));
 
-            const outcome = await readEndpoint(ENDPOINT_URL);
+            const outcome = await readMonitor(ZENDESK_MONITOR, ZENDESK);
 
-            expect(outcome.status).toBe('network-error');
-            expect(outcome.retryable).toBe(true);
-            expect(outcome.message).toBe('Failed to fetch');
+            expect(outcome).toMatchObject({ status: 'network-error', errorType: 'network', retryable: true });
         });
 
         test('reports malformed when the body is not JSON', async () => {
@@ -202,22 +234,24 @@ describe('endpoint-source', () => {
                 json: async () => { throw new SyntaxError('Unexpected token < in JSON'); }
             });
 
-            const outcome = await readEndpoint(ENDPOINT_URL);
+            const outcome = await readMonitor(ZENDESK_MONITOR, ZENDESK);
 
-            expect(outcome.status).toBe('malformed');
-            expect(outcome.retryable).toBeFalsy();
+            expect(outcome).toMatchObject({ status: 'malformed', errorType: 'http', retryable: false });
+        });
+
+        test('reports malformed without fetching when the monitor URL cannot be parsed', async () => {
+            global.fetch = jest.fn();
+
+            const outcome = await readMonitor({ name: 'Broken', url: 'not-a-url' }, ZENDESK);
+
+            expect(outcome).toMatchObject({ status: 'malformed', retryable: false });
+            expect(global.fetch).not.toHaveBeenCalled();
         });
     });
-
-    // ─── Constants ────────────────────────────────────────────────────────────
 
     describe('constants', () => {
         test('exposes the request timeout used for user-facing messages', () => {
             expect(REQUEST_TIMEOUT_MS).toBe(10000);
-        });
-
-        test('exposes a dashboard fallback for the no-Endpoint case', () => {
-            expect(DEFAULT_DASHBOARD_URL).toBe('https://cpanel.zendesk.com/agent/dashboard');
         });
     });
 });

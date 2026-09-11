@@ -13,8 +13,12 @@
 
 import Logger from './logger.js';
 import { getSession, setSession } from './storage-service.js';
-import { DEFAULT_DASHBOARD_URL } from './endpoint-source.js';
 import { playAudio } from './offscreen-document.js';
+
+// Last-resort click target, used only when a notification has no mapped URL at
+// all. Provider-specific fallbacks arrive via notify()'s providerFallbackUrl,
+// which each adapter supplies through fallbackDashboardUrl().
+const DEFAULT_DASHBOARD_URL = 'https://cpanel.zendesk.com/agent/dashboard';
 
 // ─── Notification History (session storage) ────────────────────────────────────
 
@@ -113,10 +117,13 @@ function handleNotificationClick(notificationId) {
     Logger.info('Notification clicked:', notificationId);
 
     const notifMap = await getNotificationMap();
-    const endpointUrl = notifMap.get(notificationId);
+    const mapped = notifMap.get(notificationId);
 
-    if (endpointUrl) {
-      chrome.tabs.create({ url: endpointUrl });
+    if (mapped) {
+      // Values may be a plain URL string (legacy) or {url, fallback} (current).
+      const url = typeof mapped === 'string' ? mapped : mapped.url;
+      const fallback = typeof mapped === 'string' ? undefined : mapped.fallback;
+      chrome.tabs.create({ url: url || fallback || DEFAULT_DASHBOARD_URL });
       notifMap.delete(notificationId);
       await saveNotificationMap(notifMap);
     } else {
@@ -149,9 +156,11 @@ export function init() {
  * @param {number} opts.newTickets
  * @param {number} opts.totalCount
  * @param {string} opts.endpointUrl
+ * @param {string} [opts.providerLabel] — e.g. "Zendesk" / "Jira" (defaults to Zendesk)
+ * @param {string} [opts.providerFallbackUrl] — click fallback for this provider
  * @param {object} opts.settings
  */
-export async function notify({ endpointId, endpointName, newTickets, totalCount, endpointUrl, settings }) {
+export async function notify({ endpointId, endpointName, newTickets, totalCount, endpointUrl, providerLabel = 'Zendesk', providerFallbackUrl, settings }) {
   Logger.info(`New tickets detected: ${newTickets} new tickets in ${endpointName}`);
 
   // Play sound notification
@@ -165,14 +174,17 @@ export async function notify({ endpointId, endpointName, newTickets, totalCount,
     const notificationOptions = {
       type: 'basic',
       iconUrl: 'icons/icon48.png',
-      title: `New Zendesk Tickets: ${endpointName}`,
+      title: `New ${providerLabel} Tickets: ${endpointName}`,
       message: `${newTickets} new ticket(s)\nTotal: ${totalCount} tickets`,
       priority: 2
     };
 
     // Persist notification → URL mapping in session storage
     const notifMap = await getNotificationMap();
-    notifMap.set(notificationId, endpointUrl);
+    notifMap.set(notificationId, {
+      url: endpointUrl,
+      fallback: providerFallbackUrl
+    });
     await saveNotificationMap(notifMap);
 
     // Persist notification in history for the popup queue

@@ -6,7 +6,7 @@ import * as snoozeService from './utils/snooze-service.js';
 import * as notificationManager from './utils/notification-manager.js';
 import * as rateLimitService from './utils/rate-limit-service.js';
 import { MessageRouter } from './utils/message-router.js';
-import { getSession, setSession, getLocal } from './utils/storage-service.js';
+import { getSession, setSession, getLocal, getMonitors } from './utils/storage-service.js';
 import { migrate, needsMigration } from './utils/settings.js';
 import { playAudio } from './utils/offscreen-document.js';
 import { resolveSoundSource, SOUND_PAGE_PREFIX } from './utils/sound-source.js';
@@ -17,7 +17,8 @@ import {
 } from './utils/monitor.js';
 import {
   checkAllEndpoints,
-  checkEndpoint
+  checkEndpoint,
+  getAllMonitorErrors
 } from './utils/poller.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -29,21 +30,26 @@ const MIN_REFRESH_INTERVAL = 30000; // 30 seconds minimum between manual refresh
 chrome.runtime.onInstalled.addListener(async (details) => {
   Logger.info('Extension event:', details.reason);
 
-  const { endpoints, settings: storedSettings } = await getLocal(['endpoints', 'settings']);
+  // getMonitors() migrates the legacy `endpoints` key (provider: 'zendesk')
+  // and persists the migration — must run before deciding whether to seed,
+  // otherwise an upgrade would orphan existing users' monitors.
+  const monitors = await getMonitors();
+  const { settings: storedSettings } = await getLocal(['settings']);
   const updates = {};
 
-  if (!endpoints || !Array.isArray(endpoints)) {
-    updates.endpoints = [
+  if (monitors.length === 0) {
+    updates.monitors = [
       {
         id: Date.now(),
         name: 'My Tickets',
         url: 'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+assignee:me+status:open',
-        enabled: true
+        enabled: true,
+        provider: 'zendesk'
       }
     ];
-    Logger.info('Setting default endpoints');
+    Logger.info('Setting default monitors');
   } else {
-    Logger.info(`Preserving ${endpoints.length} existing endpoints`);
+    Logger.info(`Preserving ${monitors.length} existing monitors`);
   }
 
   // Defaults and migration are owned by utils/settings.js — this handler only
@@ -123,6 +129,11 @@ router.register('getStatus', async (request, sendResponse) => {
   const counts = Array.isArray(endpointCounts) ? endpointCounts : [];
   const snoozed = await snoozeService.isSnoozed();
   sendResponse({ enabled: isEnabled, counts, lastCheck: lastCheckTime, isSnoozed: snoozed });
+});
+
+router.register('getMonitorErrors', async (request, sendResponse) => {
+  const errors = await getAllMonitorErrors();
+  sendResponse({ errors });
 });
 
 router.register('setSnooze', async (request, sendResponse) => {

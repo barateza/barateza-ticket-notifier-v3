@@ -157,12 +157,12 @@
 
     <div class="section">
         <div class="section-header">
-            <h3>Endpoints</h3>
+            <h3>Monitors</h3>
             <div class="endpoint-io-actions">
-                <button id="exportEndpointsBtn" class="btn btn-ghost-icon" title="Export endpoints to JSON file">
+                <button id="exportEndpointsBtn" class="btn btn-ghost-icon" title="Export monitors to JSON file">
                     <span aria-hidden="true">📤</span> Export
                 </button>
-                <button id="importEndpointsBtn" class="btn btn-ghost-icon" title="Import endpoints from JSON file">
+                <button id="importEndpointsBtn" class="btn btn-ghost-icon" title="Import monitors from JSON file">
                     <span aria-hidden="true">📥</span> Import
                 </button>
             </div>
@@ -170,17 +170,27 @@
         <div id="endpointsList" class="endpoints-list"></div>
         <button id="addEndpointBtn" class="btn btn-outline">
             <span class="btn-icon">➕</span>
-            Add Endpoint
+            Add Monitor
         </button>
-        <!-- Hidden file input for importing endpoints (triggered programmatically) -->
+        <!-- Hidden file input for importing monitors (triggered programmatically) -->
         <input type="file" id="importFileInput" accept=".json" hidden aria-hidden="true">
     </div>
 
-    <!-- Add Endpoint Modal -->
+    <div class="section">
+        <h3>Jira Credentials</h3>
+        <div id="jiraCredentialsList" class="jira-credentials-list"></div>
+        <div class="setting">
+            <span class="jira-credentials-hint">Jira monitors need an Atlassian API token per site. Create one at
+                <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" rel="noopener noreferrer">id.atlassian.com</a>.
+                Tokens are stored locally on this machine and sent only to your own Jira site.</span>
+        </div>
+    </div>
+
+    <!-- Add Monitor Modal -->
     <div id="addEndpointModal" class="modal hidden">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Add New Endpoint</h3>
+                <h3>Add New Monitor</h3>
                 <button id="closeModal" class="close-btn" aria-label="Close">&times;</button>
             </div>
             <div class="modal-body">
@@ -189,10 +199,15 @@
                     <input type="text" id="endpointName" placeholder="e.g., My Tickets">
                 </div>
                 <div class="form-group">
-                    <label for="endpointUrl">Zendesk API URL:</label>
+                    <label for="endpointUrl">Search URL:</label>
                     <textarea id="endpointUrl"
                         maxlength="2048"
-                        placeholder="https://your-domain.zendesk.com/api/v2/search.json?query=..."></textarea>
+                        placeholder="https://your-domain.zendesk.com/api/v2/search.json?query=...&#10;https://your-site.atlassian.net/issues/?jql=..."></textarea>
+                    <div class="provider-detect-row">
+                        <span id="providerDetectChip" class="provider-chip"></span>
+                    </div>
+                    <div class="hint" id="endpointUrlHint">Paste a Zendesk search URL or a Jira search URL — the provider is detected from the address.</div>
+                    <div class="error hidden" id="endpointUrlError"></div>
                 </div>
                 <div class="form-actions">
                     <button id="testEndpoint" class="btn btn-outline">

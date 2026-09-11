@@ -1,174 +1,198 @@
 // ─── Endpoint Source ──────────────────────────────────────────────────────────
 //
-// The one module that knows how to read a ticket count from an Endpoint.
+// The one module that reads a ticket count for a Monitor. It owns the parts that
+// are identical whichever provider is being polled — resolving authentication,
+// issuing the request, the timeout, and classifying the failure — while the
+// provider adapter supplies the policy: the polling URL, the fetch options
+// (cookies vs Basic auth), and how to parse the count.
 //
-// Everything site-specific about *reading* an Endpoint lives here: the URL shape,
-// the authentication-cookie adapter, the request headers, the rate-limit and
-// error taxonomy, and the response shape. Callers get a single outcome value
-// instead of branching on `response.ok`, `status === 429` and `typeof data.count`
-// in two execution contexts.
+// Interface (2 exports):
+//   REQUEST_TIMEOUT_MS   — per-request timeout, for user-facing messages
+//   readMonitor(monitor, provider) → outcome object; never rejects
 //
-// Interface (4 exports):
-//   describeEndpointUrl(url) — pure: { ok: true } | { ok: false, reason }
-//   readEndpoint(url)        — outcome object; never rejects
-//   REQUEST_TIMEOUT_MS       — per-request timeout, for user-facing messages
-//   DEFAULT_DASHBOARD_URL    — where to send the user when no Endpoint URL is known
+// Outcome (check `ok` first):
+//   { ok: true,  count, hasCount }
+//   { ok: false, status, errorType, message, retryable, retryAfter?, httpStatus? }
 //
-// Outcome (readEndpoint never rejects; check `ok` first):
-//   { ok: true,  status: 'ok',              count, hasCount, results }
-//   { ok: false, status: 'unauthenticated', domain }
-//   { ok: false, status: 'rate-limited',    domain, retryAfter, retryable: false }
-//   { ok: false, status: 'timed-out',       domain, retryable: false }
-//   { ok: false, status: 'malformed',       domain, retryable: false, message }
-//   { ok: false, status: 'http-error',      domain, httpStatus, httpStatusText, retryable }
-//   { ok: false, status: 'network-error',   domain, retryable: true, message }
-//
-// `retryable` is the module's opinion on whether the caller should try again
+// `status` is the semantic failure:
+//   unauthenticated | rate-limited | timed-out | malformed | http-error | network-error
+// `errorType` is the category the popup displays, matching the poller's
+// session-persisted monitor error state:
+//   auth | missingCredentials | rateLimit | http | network
+// `retryable` is this module's opinion on whether another attempt could help
 // (5xx and transport failures, not 4xx or timeouts) — the caller owns the retry
-// policy (how many, how long to wait).
-//
-// URL shape reasons map to user-facing copy in utils/validators.js, so the rule
-// "what is a valid Endpoint URL" has one home and the wording another.
+// policy: how many attempts, and how long to wait.
 
 import Logger from './logger.js';
 import * as cookieService from './cookie-service.js';
+import { getLocal } from './storage-service.js';
 
 export const REQUEST_TIMEOUT_MS = 10000;
 
-/** Zendesk agent dashboard — the fallback target when no Endpoint URL is known. */
-export const DEFAULT_DASHBOARD_URL = 'https://cpanel.zendesk.com/agent/dashboard';
-
-const SEARCH_PATH = '/api/v2/search';
-
-// ─── URL Shape (pure) ─────────────────────────────────────────────────────────
-
-/** Internal: extract the site hostname, or '' when the URL cannot be parsed. */
-function domainOf(url) {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return '';
-  }
-}
-
-/** Internal: is this hostname a Zendesk site (e.g. "cpanel.zendesk.com")? */
-function isZendeskSite(hostname) {
-  const parts = hostname.split('.');
-  return (
-    parts.length >= 3 &&
-    parts[parts.length - 2] === 'zendesk' &&
-    parts[parts.length - 1] === 'com' &&
-    parts[0].length > 0
-  );
-}
-
 /**
- * Describe whether a URL is a monitorable Endpoint.
- * Pure. Reasons are stable codes; user-facing copy lives in validators.js.
+ * Resolve provider credentials for a site.
+ * Internal — the two built-in providers differ in how they authenticate, and
+ * that difference is exactly what a provider adapter abstracts.
  *
- * @param {string} url
- * @returns {{ ok: true } | { ok: false, reason: 'required'|'invalid'|'wrong-site'|'wrong-path'|'missing-query' }}
+ * @returns {Promise<{deps?: object, error?: object}>}
  */
-export function describeEndpointUrl(url) {
-  if (!url || typeof url !== 'string') {
-    return { ok: false, reason: 'required' };
+async function resolveAuth(provider, domain) {
+  if (provider.id === 'zendesk') {
+    const cookies = await cookieService.getCookies(domain);
+    if (!cookies) {
+      return {
+        error: {
+          ok: false,
+          status: 'unauthenticated',
+          errorType: 'auth',
+          message: `No Zendesk auth cookies for ${domain}. Please log in to ${domain} in your browser.`
+        }
+      };
+    }
+    return { deps: { cookies } };
   }
 
-  let parsed;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return { ok: false, reason: 'invalid' };
+  if (provider.id === 'jira') {
+    const { jiraCredentials } = await getLocal(['jiraCredentials']);
+    const credentials = (jiraCredentials || {})[domain];
+    if (!credentials || !credentials.email || !credentials.token) {
+      return {
+        error: {
+          ok: false,
+          status: 'unauthenticated',
+          errorType: 'missingCredentials',
+          message: `No Jira credentials configured for ${domain}. Add them in Settings → Jira credentials.`
+        }
+      };
+    }
+    return { deps: { credentials } };
   }
 
-  if (!isZendeskSite(parsed.hostname)) {
-    return { ok: false, reason: 'wrong-site' };
-  }
-
-  if (!parsed.pathname.includes(SEARCH_PATH)) {
-    return { ok: false, reason: 'wrong-path' };
-  }
-
-  if (!parsed.searchParams.has('query')) {
-    return { ok: false, reason: 'missing-query' };
-  }
-
-  return { ok: true };
+  return { deps: {} };
 }
 
-// ─── Reading ──────────────────────────────────────────────────────────────────
+/**
+ * Whether the provider's response actually carried a count.
+ * `parseCount` coerces a missing count to 0, so it cannot distinguish "the API
+ * sent zero" from "the API sent no count field" — this can.
+ * Internal: the count fields differ per provider, so this is provider policy.
+ */
+function hasExplicitCount(provider, data) {
+  if (provider.id === 'jira') {
+    return typeof data?.count !== 'undefined' || typeof data?.total !== 'undefined';
+  }
+  return typeof data?.count !== 'undefined';
+}
 
 /**
- * Read the current ticket count from an Endpoint.
+ * Read the current ticket count for a Monitor.
  * Never rejects — failures come back as outcomes.
  *
- * @param {string} url — Endpoint URL
+ * @param {{id: number|string, name: string, url: string, provider?: string}} monitor
+ * @param {object} provider — the adapter from the provider registry
  * @returns {Promise<object>} outcome (see the header comment)
  */
-export async function readEndpoint(url) {
-  const domain = domainOf(url);
+export async function readMonitor(monitor, provider) {
+  let domain;
+  let apiUrl;
+  try {
+    domain = new URL(monitor.url).hostname;
+    apiUrl = provider.buildApiUrl(monitor.url);
+  } catch {
+    Logger.error(`Monitor URL could not be parsed: ${monitor.url}`);
+    return {
+      ok: false,
+      status: 'malformed',
+      errorType: 'http',
+      retryable: false,
+      message: 'Invalid monitor URL — check the URL in Settings'
+    };
+  }
 
-  // Authentication: cookies come from the browser session, never from storage.
-  const cookies = await cookieService.getCookies(domain);
-  if (!cookies) {
-    Logger.error(`No Zendesk auth cookies for ${domain}. Please log in to ${domain} in your browser.`);
-    return { ok: false, status: 'unauthenticated', domain };
+  const { deps, error } = await resolveAuth(provider, domain);
+  if (error) {
+    Logger.error(error.message);
+    return error;
   }
 
   let response;
   try {
-    response = await fetch(url, {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Cookie': cookies
-      },
+    response = await fetch(apiUrl, {
+      ...provider.buildFetchOptions(deps),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
-  } catch (error) {
-    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') {
-      Logger.error(`Endpoint timed out after ${REQUEST_TIMEOUT_MS / 1000} seconds: ${url}`);
-      return { ok: false, status: 'timed-out', domain };
+  } catch (fetchError) {
+    if (fetchError?.name === 'TimeoutError' || fetchError?.name === 'AbortError') {
+      Logger.error(`Monitor ${monitor.name} timed out after ${REQUEST_TIMEOUT_MS / 1000} seconds`);
+      return {
+        ok: false,
+        status: 'timed-out',
+        errorType: 'network',
+        retryable: false,
+        message: 'Timed out after 10 seconds — will retry on the next check'
+      };
     }
-    Logger.error(`Network error reading ${url}:`, error);
-    return { ok: false, status: 'network-error', domain, retryable: true, message: error?.message };
+    Logger.error(`Network error reading ${monitor.name}:`, fetchError);
+    return {
+      ok: false,
+      status: 'network-error',
+      errorType: 'network',
+      retryable: true,
+      message: 'Network error — will retry on the next check'
+    };
   }
 
   if (!response.ok) {
     if (response.status === 429) {
       const retryAfter = response.headers?.get?.('Retry-After') ?? null;
-      return { ok: false, status: 'rate-limited', domain, retryAfter };
+      return {
+        ok: false,
+        status: 'rate-limited',
+        errorType: 'rateLimit',
+        retryAfter,
+        retryable: false,
+        message: `Rate limited by ${provider.label} — will resume automatically`
+      };
     }
+
+    // A provider may treat a status as an authentication failure: Jira answers
+    // a bad API token with 401.
+    if (response.status === 401 && provider.id === 'jira') {
+      const message = `Jira rejected the credentials for ${domain} — check Settings → Jira credentials`;
+      Logger.error(message);
+      return { ok: false, status: 'unauthenticated', errorType: 'auth', retryable: false, message };
+    }
+
     return {
       ok: false,
       status: 'http-error',
-      domain,
+      errorType: 'http',
       httpStatus: response.status,
-      httpStatusText: response.statusText,
-      retryable: response.status >= 500
+      retryable: response.status >= 500,
+      message: `HTTP ${response.status} — will retry on the next check`
     };
   }
 
   let data;
   try {
     data = await response.json();
-  } catch {
-    Logger.error(`Response from ${url} was not valid JSON`);
-    return { ok: false, status: 'malformed', domain, message: 'Response was not valid JSON' };
+  } catch (parseError) {
+    Logger.error(`Invalid JSON response for ${monitor.name}:`, parseError);
+    return {
+      ok: false,
+      status: 'malformed',
+      errorType: 'http',
+      retryable: false,
+      message: 'Invalid response format — will retry on the next check'
+    };
   }
 
-  // A missing count is not an error: the count is the primary signal and a
-  // partial response should still re-baseline the Endpoint rather than throw
-  // the observation away. Callers that need "the API really told us" (the popup's
-  // Test connection) check hasCount.
+  // `count` is always a number so callers can compare and sum it; `hasCount`
+  // reports whether the provider really sent one, which the popup's
+  // Test connection distinguishes from a partial response.
   return {
     ok: true,
-    status: 'ok',
-    domain,
-    count: Number(data?.count) || 0,
-    hasCount: typeof data?.count === 'number',
-    results: Array.isArray(data?.results) ? data.results : []
+    count: Number(provider.parseCount(data)) || 0,
+    hasCount: hasExplicitCount(provider, data)
   };
 }

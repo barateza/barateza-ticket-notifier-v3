@@ -49,7 +49,9 @@ describe('Background – Unit Tests', () => {
             if (callback) callback();
         });
 
-        chrome.storage.local.remove.mockImplementation((_keys, callback) => {
+        chrome.storage.local.remove.mockImplementation((keys, callback) => {
+            const list = typeof keys === 'string' ? [keys] : keys;
+            list.forEach(k => { delete mockLocalStorage[k]; });
             if (callback) callback();
         });
 
@@ -266,28 +268,48 @@ describe('Background – Unit Tests', () => {
     // ─── onInstalled Handler ──────────────────────────────────────────────────
 
     describe('onInstalled handler', () => {
-        test('sets default endpoints and settings when storage is empty', async () => {
-            mockLocalStorage.endpoints = undefined;
+        test('sets default monitors and settings when storage is empty', async () => {
+            mockLocalStorage.monitors = undefined;
             mockLocalStorage.settings = undefined;
 
             await installListeners[0]({ reason: 'install' });
 
-            expect(mockLocalStorage.endpoints).toBeDefined();
-            expect(mockLocalStorage.endpoints.length).toBe(1);
-            expect(mockLocalStorage.endpoints[0].name).toBe('My Tickets');
+            expect(mockLocalStorage.monitors).toBeDefined();
+            expect(mockLocalStorage.monitors.length).toBe(1);
+            expect(mockLocalStorage.monitors[0].name).toBe('My Tickets');
+            expect(mockLocalStorage.monitors[0].provider).toBe('zendesk');
             expect(mockLocalStorage.settings).toBeDefined();
             expect(mockLocalStorage.settings.checkInterval).toBe(1);
         });
 
-        test('preserves existing endpoints and settings', async () => {
-            mockLocalStorage.endpoints = [{ id: 99, name: 'Custom', url: 'https://test.zendesk.com/api/v2/search.json?query=type:ticket', enabled: true }];
+        test('preserves existing monitors and settings', async () => {
+            mockLocalStorage.monitors = [{ id: 99, name: 'Custom', url: 'https://test.zendesk.com/api/v2/search.json?query=type:ticket', enabled: true, provider: 'zendesk' }];
             mockLocalStorage.settings = { checkInterval: 5, soundEnabled: false, notificationEnabled: false };
 
             await installListeners[0]({ reason: 'update' });
 
-            expect(mockLocalStorage.endpoints.length).toBe(1);
-            expect(mockLocalStorage.endpoints[0].name).toBe('Custom');
+            expect(mockLocalStorage.monitors.length).toBe(1);
+            expect(mockLocalStorage.monitors[0].name).toBe('Custom');
             expect(mockLocalStorage.settings.checkInterval).toBe(5);
+        });
+
+        test('migrates legacy endpoints on upgrade instead of seeding the default', async () => {
+            // Upgrade from a v3.6.x install: legacy `endpoints` key, no `monitors`.
+            mockLocalStorage.endpoints = [
+                { id: 7, name: 'Legacy Queue', url: 'https://legacy.zendesk.com/api/v2/search.json?query=type:ticket', enabled: true }
+            ];
+            mockLocalStorage.settings = { checkInterval: 1, soundEnabled: true, notificationEnabled: true };
+
+            await installListeners[0]({ reason: 'update' });
+
+            // The user's monitor is preserved (with provider defaulted), not
+            // replaced by the seeded "My Tickets" default.
+            expect(mockLocalStorage.monitors).toBeDefined();
+            expect(mockLocalStorage.monitors.length).toBe(1);
+            expect(mockLocalStorage.monitors[0].name).toBe('Legacy Queue');
+            expect(mockLocalStorage.monitors[0].provider).toBe('zendesk');
+            // Migration persisted: legacy key removed.
+            expect(mockLocalStorage.endpoints).toBeUndefined();
         });
 
         test('migrates missing settings properties', async () => {

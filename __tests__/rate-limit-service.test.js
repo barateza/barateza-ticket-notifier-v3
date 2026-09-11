@@ -96,4 +96,39 @@ describe('RateLimitService', () => {
             expect(chrome.alarms.create).not.toHaveBeenCalled();
         });
     });
+
+    describe('per-provider isolation', () => {
+        test('record for jira does not limit zendesk', () => {
+            rateLimitService.record('jira', '60');
+            expect(rateLimitService.isLimited('jira')).toBe(true);
+            expect(rateLimitService.isLimited('zendesk')).toBe(false);
+            expect(rateLimitService.isLimited()).toBe(true); // any provider
+        });
+
+        test('clear resets all providers', () => {
+            rateLimitService.record('jira', '60');
+            rateLimitService.record('zendesk', '30');
+            rateLimitService.clear();
+            expect(rateLimitService.isLimited('jira')).toBe(false);
+            expect(rateLimitService.isLimited('zendesk')).toBe(false);
+            expect(rateLimitService.isLimited()).toBe(false);
+        });
+
+        test('rescheduleIfLimited recreates the alarm when any provider is limited', () => {
+            rateLimitService.record('jira', '120');
+            jest.clearAllMocks();
+            rateLimitService.rescheduleIfLimited();
+            expect(chrome.alarms.create).toHaveBeenCalledWith('rateLimitResume', expect.any(Object));
+        });
+
+        test('alarm is scheduled for the soonest resume when providers are limited at different times', () => {
+            rateLimitService.record('zendesk', '30'); // 0.5 min
+            rateLimitService.record('jira', '120');   // 2 min — later
+
+            expect(chrome.alarms.create).toHaveBeenLastCalledWith(
+                'rateLimitResume',
+                expect.objectContaining({ delayInMinutes: 0.5 })
+            );
+        });
+    });
 });

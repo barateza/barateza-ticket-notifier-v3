@@ -1,23 +1,28 @@
 // ─── Poller ───────────────────────────────────────────────────────────────────
 //
-// Core polling logic: iterates enabled endpoints, checks each one with retry
-// logic, compares ticket counts, and dispatches notifications.
+// Core polling logic: iterates enabled monitors, checks each one with retry
+// logic, compares ticket counts, and dispatches notifications. Provider-aware
+// via the provider registry: each monitor's adapter supplies the polling URL,
+// fetch options (cookies vs Basic auth), and count parsing.
 // Does NOT handle alarm creation or badge updates — those belong in monitor.js.
-// Does NOT know how to talk to Zendesk — that belongs in endpoint-source.js; this
-// module decides what an observed count *means*.
+// Does NOT know how to talk to a provider — utils/endpoint-source.js performs the
+// read and owns the auth/error taxonomy; this module decides what an observed
+// count *means*.
 //
-// Exported API (3 functions):
-//   checkAllEndpoints() — iterates enabled endpoints with concurrency control
-//   checkEndpoint()     — single-endpoint check with retries
-//   getAllCounts()      — raw [id, count] pairs (used by monitor.js for the badge)
+// Exported API (4 functions):
+//   checkAllEndpoints()     — iterates enabled monitors with concurrency control
+//   checkEndpoint()         — single-monitor check with retries
+//   getAllCounts()          — raw [id, count] pairs (used by monitor.js for the badge)
+//   getAllMonitorErrors()   — per-monitor error state for the popup
 // ───────────────────────────────────────────────────────────────────────────────
 
 import Logger from './logger.js';
 import * as snoozeService from './snooze-service.js';
 import * as notificationManager from './notification-manager.js';
 import * as rateLimitService from './rate-limit-service.js';
-import { readEndpoint } from './endpoint-source.js';
-import { getSession, getLocal, setSession } from './storage-service.js';
+import { getProvider } from './providers/provider-registry.js';
+import { readMonitor } from './endpoint-source.js';
+import { getSession, setSession, getLocal, getMonitors } from './storage-service.js';
 
 // ─── Count Persistence (internal) ──────────────────────────────────────────────
 
@@ -38,106 +43,161 @@ async function getAllCounts() {
 
 export { getAllCounts };
 
-// ─── Check All ────────────────────────────────────────────────────────────────
+// ─── Monitor Error State (internal) ───────────────────────────────────────────
+//
+// Session-persisted per-monitor error lines surfaced in the popup.
+// Cleared on the next successful poll.
 
-export async function checkAllEndpoints() {
-  Logger.info('Checking all endpoints...');
-  if (rateLimitService.isLimited()) {
-    Logger.info('Skipping endpoint checks due to active Zendesk rate limiting');
-    return;
-  }
+async function getMonitorErrors() {
+  const { monitorErrors } = await getSession(['monitorErrors']);
+  return new Map(Array.isArray(monitorErrors) ? monitorErrors : []);
+}
 
+async function saveMonitorErrors(map) {
+  await setSession({ monitorErrors: Array.from(map.entries()) });
+}
+
+/** Exported for background.js (getMonitorErrors message handler). */
+async function getAllMonitorErrors() {
+  const { monitorErrors } = await getSession(['monitorErrors']);
+  return Array.isArray(monitorErrors) ? monitorErrors : [];
+}
+
+export { getAllMonitorErrors };
+
+async function setMonitorError(monitorId, type, message) {
   try {
-    const { endpoints, settings } = await getLocal(['endpoints', 'settings']);
-
-    if (!endpoints || !Array.isArray(endpoints)) {
-      Logger.info('No endpoints configured');
-      return;
-    }
-
-    const enabledEndpoints = endpoints.filter(endpoint => endpoint.enabled);
-    const concurrency = 3;
-
-    for (let i = 0; i < enabledEndpoints.length; i += concurrency) {
-      const batch = enabledEndpoints.slice(i, i + concurrency);
-      await Promise.all(
-        batch.map(endpoint => checkEndpoint(endpoint, settings, 0))
-      );
-    }
-
-    Logger.info(`Completed checking ${enabledEndpoints.length} endpoints`);
+    const map = await getMonitorErrors();
+    map.set(monitorId, { type, message, at: Date.now() });
+    await saveMonitorErrors(map);
   } catch (error) {
-    Logger.error('Error checking endpoints:', error);
+    Logger.error('Failed to persist monitor error state:', error);
   }
 }
 
-// ─── Check Single Endpoint ────────────────────────────────────────────────────
-
-export async function checkEndpoint(endpoint, settings, retryCount = 0) {
-  const maxRetries = 2;
+async function clearMonitorError(monitorId) {
   try {
-    Logger.info(`Checking endpoint: ${endpoint.name}`);
+    const map = await getMonitorErrors();
+    if (map.delete(monitorId)) {
+      await saveMonitorErrors(map);
+    }
+  } catch (error) {
+    Logger.error('Failed to persist monitor error state:', error);
+  }
+}
 
-    const outcome = await readEndpoint(endpoint.url);
+// ─── Check All ────────────────────────────────────────────────────────────────
+
+export async function checkAllEndpoints() {
+  Logger.info('Checking all monitors...');
+
+  try {
+    const monitors = await getMonitors();
+    const { settings } = await getLocal(['settings']);
+
+    if (!monitors.length) {
+      Logger.info('No monitors configured');
+      return;
+    }
+
+    const enabledMonitors = monitors.filter(monitor => monitor.enabled);
+    const concurrency = 3;
+
+    for (let i = 0; i < enabledMonitors.length; i += concurrency) {
+      const batch = enabledMonitors.slice(i, i + concurrency);
+      await Promise.all(
+        batch.map(monitor => checkEndpoint(monitor, settings, 0))
+      );
+    }
+
+    Logger.info(`Completed checking ${enabledMonitors.length} monitors`);
+  } catch (error) {
+    Logger.error('Error checking monitors:', error);
+  }
+}
+
+// ─── Check Single Monitor ─────────────────────────────────────────────────────
+
+export async function checkEndpoint(monitor, settings, retryCount = 0) {
+  const maxRetries = 2;
+  const provider = getProvider(monitor.provider);
+
+  try {
+    if (rateLimitService.isLimited(provider.id)) {
+      Logger.info(`Skipping ${monitor.name} — ${provider.id} is rate limited`);
+      return;
+    }
+
+    Logger.info(`Checking monitor: ${monitor.name} (${provider.id})`);
+
+    const outcome = await readMonitor(monitor, provider);
 
     if (!outcome.ok) {
-      // Rate limiting is the one failure with a side effect: it pauses everything.
+      // Rate limiting is the one failure with a side effect: it pauses the
+      // provider for everyone until the window lifts.
       if (outcome.status === 'rate-limited') {
-        rateLimitService.record(outcome.retryAfter);
-        Logger.error(`Rate limited by Zendesk for ${endpoint.name} (Retry-After: ${outcome.retryAfter || 'missing'})`);
+        rateLimitService.record(provider.id, outcome.retryAfter);
+        Logger.error(`Rate limited by ${provider.label} for ${monitor.name} (Retry-After: ${outcome.retryAfter || 'missing'})`);
+        await setMonitorError(monitor.id, 'rateLimit', outcome.message);
         return;
       }
 
-      if (outcome.status === 'http-error') {
-        Logger.error(`HTTP ${outcome.httpStatus} for ${endpoint.name}`);
-      }
-      // unauthenticated / timed-out / malformed / network-error are logged by
-      // endpoint-source.js, which knows what the failure actually was.
-
       if (outcome.retryable && retryCount < maxRetries) {
-        Logger.info(`Retrying ${endpoint.name} (${retryCount + 1}/${maxRetries})`);
+        Logger.info(`Retrying ${monitor.name} (${retryCount + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-        return checkEndpoint(endpoint, settings, retryCount + 1);
+        return checkEndpoint(monitor, settings, retryCount + 1);
       }
+
+      Logger.error(`Endpoint ${monitor.name} failed: ${outcome.message}`);
+      await setMonitorError(monitor.id, outcome.errorType, outcome.message);
       return;
     }
+
+    await clearMonitorError(monitor.id);
 
     const newCount = outcome.count;
 
     const endpointCounts = await getEndpointCounts();
-    const previousCount = endpointCounts.get(endpoint.id) ?? -1;
+    const previousCount = endpointCounts.get(monitor.id) ?? -1;
 
-    Logger.info(`${endpoint.name}: ${newCount} tickets (was ${previousCount === -1 ? 'unknown' : previousCount})`);
+    Logger.info(`${monitor.name}: ${newCount} tickets (was ${previousCount === -1 ? 'unknown' : previousCount})`);
 
     if (newCount > previousCount && previousCount >= 0) {
       const newTickets = newCount - previousCount;
 
       if (!(await snoozeService.isSnoozed())) {
         await notificationManager.notify({
-          endpointId: endpoint.id,
-          endpointName: endpoint.name,
+          endpointId: monitor.id,
+          endpointName: monitor.name,
           newTickets,
           totalCount: newCount,
-          endpointUrl: endpoint.url,
+          endpointUrl: monitor.url,
+          providerId: provider.id,
+          providerLabel: provider.label,
+          providerFallbackUrl: provider.fallbackDashboardUrl(monitor.url),
           settings
         });
       } else {
-        Logger.info(`Snoozed — skipping notification for ${endpoint.name}`);
+        Logger.info(`Snoozed — skipping notification for ${monitor.name}`);
       }
     }
 
-    endpointCounts.set(endpoint.id, newCount);
+    endpointCounts.set(monitor.id, newCount);
     await saveEndpointCounts(endpointCounts);
 
   } catch (error) {
-    Logger.error(`Error checking ${endpoint.name}:`, error);
+    Logger.error(`Error checking ${monitor.name}:`, error);
 
     if (retryCount < maxRetries && error.name !== 'AbortError') {
-      Logger.info(`Retrying ${endpoint.name} (${retryCount + 1}/${maxRetries})`);
+      Logger.info(`Retrying ${monitor.name} (${retryCount + 1}/${maxRetries})`);
       await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-      return checkEndpoint(endpoint, settings, retryCount + 1);
-    } else if (error.name === 'AbortError') {
-      Logger.error(`Endpoint ${endpoint.name} timed out after 10 seconds`);
+      return checkEndpoint(monitor, settings, retryCount + 1);
     }
+
+    const message = error.name === 'AbortError'
+      ? `Timed out after 10 seconds — will retry on the next check`
+      : `Network error — will retry on the next check`;
+    Logger.error(`Endpoint ${monitor.name} ${error.name === 'AbortError' ? 'timed out after 10 seconds' : 'failed'}`);
+    await setMonitorError(monitor.id, 'network', message);
   }
 }

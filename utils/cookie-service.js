@@ -13,6 +13,7 @@
 //   cacheTimestamps    — Map<domain, number> tracks when each domain was cached
 
 import Logger from './logger.js';
+import { getZendeskProvider } from './providers/provider-registry.js';
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -26,20 +27,16 @@ const inFlightCache = new Map();
 const cacheTimestamps = new Map();
 
 /**
- * Internal: fetch cookies from chrome.cookies and filter for Zendesk auth cookies.
+ * Internal: fetch cookies from chrome.cookies and filter for provider auth
+ * cookies (Zendesk today — Jira uses token auth and never reads cookies).
  * @param {string} domain
  * @returns {Promise<string>}
  */
-async function fetchZendeskCookies(domain) {
+async function fetchProviderCookies(domain) {
   const cookies = await chrome.cookies.getAll({ domain });
 
-  const authCookies = cookies.filter(cookie =>
-    cookie.name.includes('session') ||
-    cookie.name.includes('auth') ||
-    cookie.name.includes('_zendesk') ||
-    cookie.name.includes('csrf') ||
-    cookie.name === '_help_center_session'
-  );
+  const isAuthCookie = getZendeskProvider().isAuthCookie;
+  const authCookies = cookies.filter(cookie => isAuthCookie(cookie.name));
 
   const cookieString = authCookies
     .map(cookie => `${cookie.name}=${cookie.value}`)
@@ -84,7 +81,7 @@ export async function getCookies(domain) {
 
   const promise = (async () => {
     try {
-      const cookieString = await fetchZendeskCookies(domain);
+      const cookieString = await fetchProviderCookies(domain);
       domainCache.set(domain, cookieString);
       cacheTimestamps.set(domain, Date.now());
       return cookieString;
