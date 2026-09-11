@@ -63,9 +63,15 @@ copy_dir_clean() {
 mkdir -p "$STAGING_DIR/icons"
 cp icons/*.png "$STAGING_DIR/icons/"
 
-# Copy utils (strictly js files, no tests if they were co-located)
+# Copy utils recursively (js files only, no tests if they were co-located).
+# Recursion matters: the provider adapters live in utils/providers/, and a
+# non-recursive `utils/*.js` copy silently ships an extension whose poller
+# cannot resolve them — the build still succeeds and the zip still looks fine.
 mkdir -p "$STAGING_DIR/utils"
-cp utils/*.js "$STAGING_DIR/utils/"
+find utils -type f -name '*.js' | while IFS= read -r f; do
+    mkdir -p "$STAGING_DIR/$(dirname "$f")"
+    cp "$f" "$STAGING_DIR/$f"
+done
 
 # 5. Create ZIP archive with hygiene
 # -X: Exclude extra file attributes (macOS)

@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.7.0] - 2026-09-11
+
+### Added
+- **Jira Service Management (JSM / Jira Cloud) monitoring.** Monitors are no longer Zendesk-only: paste a Jira search URL (`*.atlassian.net` with a `jql` parameter) and the extension polls it alongside your Zendesk queues. Jira authenticates with an API token (email + token, per site) instead of browser cookies — configure it under Settings → Jira credentials, which lists every Jira site you have a monitor for.
+- **Provider registry** (`utils/providers/`): each provider is an adapter that owns its own URL validation, URL normalisation, polling URL, fetch options, and count parsing — so adding another provider does not mean editing the poller. Supported: Zendesk, Jira.
+
+### Changed
+- **`utils/endpoint-source.js` is the single reader of a monitor.** Authentication resolution (cookies vs API token), the request, the timeout and the failure taxonomy now live in one module, and it returns one typed outcome (`unauthenticated` / `rate-limited` / `timed-out` / `malformed` / `http-error` / `network-error`) instead of every caller branching on `response.ok`, `status === 429` and `typeof data.count`. The poller and the popup's "Test connection" share it, so the two can no longer disagree about what polling actually does.
+- **`utils/settings.js` owns the settings object** — defaults, migration, `load()` and `patch()`. Previously the settings shape was re-derived in four places across the service worker and the popup, with defaults written two different ways and two independent read-modify-writes over the same key.
+- **`utils/offscreen-document.js`** holds the Manifest V3 offscreen-document singleton, which had been duplicated byte-for-byte in the service worker and the notification manager.
+- **`utils/sound-source.js`** separates the myinstants page parser (a pure function of the HTML, testable against a fixture) from the fetch that resolves the MP3 URL.
+- **Per-provider rate limiting** and **per-monitor error state** in the popup: rate limits are tracked per provider, so a busy Jira site no longer pauses Zendesk polling, and a failing monitor shows why.
+- Endpoint storage migrated from `endpoints` to `monitors` (with a `provider` field); the previous key is migrated automatically on upgrade.
+- Endpoint import/export uses schema v2, and still accepts v1 files on import.
+
+### Removed
+- **`utils/endpoint-io.js`** — a line-for-line duplicate of `endpoint-schema.js`, `endpoint-export.js` and `endpoint-import.js` that nothing imported. Its test now lives at `__tests__/endpoint-import-export.test.js` and tests the modules that ship.
+- An unused import in `popup.js` that made `pnpm lint` fail.
+
+### Fixed
+- **Rate-limited and errored responses are no longer silently retried forever.** A request timeout is reported as it happens rather than being retried (a timeout surfaces as `TimeoutError`, which the previous `AbortError`-only check missed), and a failed poll leaves the last-known ticket count intact instead of zeroing it.
+- A monitor whose response carried no count field is no longer mistaken for one reporting zero tickets.
+- The E2E suite no longer requires an interactive Zendesk login. No spec ever called the live Zendesk API, and the one test that claimed to verify a session asserted on elements the extension does not have — so it passed with or without a session. `pnpm test:e2e` now runs without a session on any machine, including CI.
+
+### Security
+- Playwright pinned to exactly `1.62.1`. Version 1.58.2's archive extractor hangs partway through installing Chromium — it writes ~39 files and then stops, with no error. Do not restore a caret range here: `^1.62.1` resolves to 1.63.0, whose browser build is not present and would need the same extractor.
+
 ## [3.6.1] - 2026-08-04
 
 ### Changed
