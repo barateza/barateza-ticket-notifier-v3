@@ -2,6 +2,7 @@
 // Handles user interface interactions and settings management
 
 import Logger from './utils/logger.js';
+import * as settingsStore from './utils/settings.js';
 import {
     sendToSW,
     callSW,
@@ -18,7 +19,7 @@ import {
     startSnoozeTimer,
     stopSnoozeTimer
 } from './popup-snooze.js';
-import { loadSettings, saveSettings, updateCustomSoundStatus } from './popup-settings.js';
+import { loadSettings, saveSettings } from './popup-settings.js';
 import {
     checkForUpdates,
     isNewerVersion
@@ -96,11 +97,12 @@ async function handleFetchSound() {
     try {
         const response = await sendToSW({ action: 'resolveSoundUrl', myinstantsUrl: url });
         if (response?.success) {
-            // Update settings with the resolved MP3 URL and the myinstants URL
-            const { settings } = await chrome.storage.local.get(['settings']);
-            settings.customSoundUrl = url;
-            settings.customSoundMp3 = response.mp3Url;
-            await chrome.storage.local.set({ settings });
+            // Record the page URL and its resolved MP3 as one patch — the Settings
+            // module owns the storage shape and the URL→MP3 invalidation rule.
+            await settingsStore.patch({
+                customSoundUrl: url,
+                customSoundMp3: response.mp3Url
+            });
 
             document.getElementById('soundName').textContent = `🎵 ${response.soundName}`;
             document.getElementById('testSoundBtn').classList.remove('hidden');
@@ -118,8 +120,8 @@ async function handleFetchSound() {
 }
 
 async function handleTestSound() {
-    const { settings } = await chrome.storage.local.get(['settings']);
-    if (!settings?.customSoundMp3) {
+    const settings = await settingsStore.load();
+    if (!settings.customSoundMp3) {
         showError('No custom sound configured — fetch one first');
         return;
     }

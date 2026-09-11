@@ -7,6 +7,7 @@ import * as notificationManager from './utils/notification-manager.js';
 import * as rateLimitService from './utils/rate-limit-service.js';
 import { MessageRouter } from './utils/message-router.js';
 import { getSession, setSession, getLocal } from './utils/storage-service.js';
+import { migrate, needsMigration } from './utils/settings.js';
 import {
   startMonitoring,
   handleAlarmTick,
@@ -26,7 +27,7 @@ const MIN_REFRESH_INTERVAL = 30000; // 30 seconds minimum between manual refresh
 chrome.runtime.onInstalled.addListener(async (details) => {
   Logger.info('Extension event:', details.reason);
 
-  const { endpoints, settings } = await getLocal(['endpoints', 'settings']);
+  const { endpoints, settings: storedSettings } = await getLocal(['endpoints', 'settings']);
   const updates = {};
 
   if (!endpoints || !Array.isArray(endpoints)) {
@@ -43,30 +44,16 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     Logger.info(`Preserving ${endpoints.length} existing endpoints`);
   }
 
-  if (!settings) {
-    updates.settings = {
-      checkInterval: 1,
-      soundEnabled: true,
-      notificationEnabled: true,
-      darkMode: false,
-      debugMode: false,
-      customSoundEnabled: false,
-      customSoundUrl: '',
-      customSoundMp3: ''
-    };
-    Logger.info('Setting default settings');
+  // Defaults and migration are owned by utils/settings.js — this handler only
+  // decides whether a write is needed.
+  if (needsMigration(storedSettings)) {
+    updates.settings = migrate(storedSettings);
+    Logger.info(storedSettings ? 'Migrating settings to current defaults' : 'Setting default settings');
   } else {
-    let changed = false;
-    if (!('darkMode' in settings)) { settings.darkMode = false; changed = true; }
-    if (!('debugMode' in settings)) { settings.debugMode = false; changed = true; }
-    if (!('customSoundEnabled' in settings)) { settings.customSoundEnabled = false; changed = true; }
-    if (!('customSoundUrl' in settings)) { settings.customSoundUrl = ''; changed = true; }
-    if (!('customSoundMp3' in settings)) { settings.customSoundMp3 = ''; changed = true; }
-    if (changed) { updates.settings = settings; }
     Logger.info('Preserving existing settings');
   }
 
-  const currentSettings = updates.settings || settings;
+  const currentSettings = updates.settings || storedSettings;
   if (currentSettings) {
     Logger.setDebugMode(currentSettings.debugMode);
   }
