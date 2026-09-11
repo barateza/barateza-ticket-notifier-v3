@@ -5,8 +5,8 @@
 // ───────────────────────────────────────────────────────────────────────────────
 
 import Logger from './utils/logger.js';
-import * as cookieService from './utils/cookie-service.js';
 import { validateEndpointUrl, validateEndpoint } from './utils/validators.js';
+import { readEndpoint, REQUEST_TIMEOUT_MS } from './utils/endpoint-source.js';
 import {
     exportEndpoints
 } from './utils/endpoint-export.js';
@@ -241,45 +241,49 @@ export async function handleTestEndpoint() {
     }
 }
 
+/**
+ * Test one Endpoint and turn the outcome into a message for the user.
+ * Uses the same reader the background poller uses (endpoint-source.js), so
+ * "Test connection" can no longer disagree with what polling actually does.
+ */
 export async function testEndpoint(url) {
-    try {
-        const urlObj = new URL(url);
-        const domain = urlObj.hostname;
+    const outcome = await readEndpoint(url);
 
-        const cookieString = await cookieService.getCookies(domain);
-
-        const response = await fetch(url, {
-            method: 'GET',
-            credentials: 'include',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'Cookie': cookieString
-            },
-            signal: AbortSignal.timeout(10000)
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    if (outcome.ok) {
+        if (!outcome.hasCount) {
+            Logger.error('Endpoint test error: response had no count');
+            return { success: false, message: 'Invalid API response format' };
         }
-
-        const data = await response.json();
-
-        if (typeof data.count === 'undefined') {
-            throw new Error('Invalid API response format');
-        }
-
         return {
             success: true,
-            count: data.count,
-            message: `Success: Found ${data.count} tickets`
+            count: outcome.count,
+            message: `Success: Found ${outcome.count} tickets`
         };
-    } catch (error) {
-        Logger.error('Endpoint test error:', error);
-        return {
-            success: false,
-            message: error.message || 'Failed to connect to endpoint'
-        };
+    }
+
+    Logger.error(`Endpoint test error: ${outcome.status}`);
+    return { success: false, message: describeReadFailure(outcome) };
+}
+
+/** User-facing copy for a failed Endpoint read. */
+function describeReadFailure(outcome) {
+    switch (outcome.status) {
+        case 'unauthenticated':
+            return `Not logged in to ${outcome.domain} — open ${outcome.domain} in this browser and sign in, then try again`;
+        case 'rate-limited':
+            return outcome.retryAfter
+                ? `Rate limited by Zendesk — try again in ${outcome.retryAfter}s`
+                : 'Rate limited by Zendesk — try again shortly';
+        case 'timed-out':
+            return `Timed out after ${REQUEST_TIMEOUT_MS / 1000} seconds waiting for ${outcome.domain}`;
+        case 'malformed':
+            return 'Invalid API response format';
+        case 'http-error':
+            return outcome.httpStatusText
+                ? `HTTP ${outcome.httpStatus}: ${outcome.httpStatusText}`
+                : `HTTP ${outcome.httpStatus}`;
+        default:
+            return outcome.message || 'Failed to connect to endpoint';
     }
 }
 

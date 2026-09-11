@@ -13,6 +13,7 @@
 
 import Logger from './logger.js';
 import { getSession, setSession } from './storage-service.js';
+import { DEFAULT_DASHBOARD_URL } from './endpoint-source.js';
 
 let creatingOffscreenPromise = null;
 
@@ -141,7 +142,7 @@ function handleNotificationClick(notificationId) {
       await saveNotificationMap(notifMap);
     } else {
       chrome.tabs.create({
-        url: 'https://cpanel.zendesk.com/agent/dashboard'
+        url: DEFAULT_DASHBOARD_URL
       });
     }
     chrome.notifications.clear(notificationId);

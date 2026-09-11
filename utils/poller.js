@@ -3,17 +3,20 @@
 // Core polling logic: iterates enabled endpoints, checks each one with retry
 // logic, compares ticket counts, and dispatches notifications.
 // Does NOT handle alarm creation or badge updates — those belong in monitor.js.
+// Does NOT know how to talk to Zendesk — that belongs in endpoint-source.js; this
+// module decides what an observed count *means*.
 //
-// Exported API (2 functions):
+// Exported API (3 functions):
 //   checkAllEndpoints() — iterates enabled endpoints with concurrency control
 //   checkEndpoint()     — single-endpoint check with retries
+//   getAllCounts()      — raw [id, count] pairs (used by monitor.js for the badge)
 // ───────────────────────────────────────────────────────────────────────────────
 
 import Logger from './logger.js';
 import * as snoozeService from './snooze-service.js';
 import * as notificationManager from './notification-manager.js';
-import * as cookieService from './cookie-service.js';
 import * as rateLimitService from './rate-limit-service.js';
+import { readEndpoint } from './endpoint-source.js';
 import { getSession, getLocal, setSession } from './storage-service.js';
 
 // ─── Count Persistence (internal) ──────────────────────────────────────────────
@@ -75,35 +78,23 @@ export async function checkEndpoint(endpoint, settings, retryCount = 0) {
   try {
     Logger.info(`Checking endpoint: ${endpoint.name}`);
 
-    const url = new URL(endpoint.url);
-    const domain = url.hostname;
+    const outcome = await readEndpoint(endpoint.url);
 
-    const cookies = await cookieService.getCookies(domain);
-    if (!cookies) {
-      Logger.error(`No Zendesk auth cookies for ${endpoint.name}. Please log in to ${domain} in your browser.`);
-      return;
-    }
-
-    const response = await fetch(endpoint.url, {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Cookie': cookies
-      },
-      signal: AbortSignal.timeout(10000)
-    });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        const retryAfter = response.headers?.get('Retry-After');
-        rateLimitService.record(retryAfter);
-        Logger.error(`Rate limited by Zendesk for ${endpoint.name} (Retry-After: ${retryAfter || 'missing'})`);
+    if (!outcome.ok) {
+      // Rate limiting is the one failure with a side effect: it pauses everything.
+      if (outcome.status === 'rate-limited') {
+        rateLimitService.record(outcome.retryAfter);
+        Logger.error(`Rate limited by Zendesk for ${endpoint.name} (Retry-After: ${outcome.retryAfter || 'missing'})`);
         return;
       }
-      Logger.error(`HTTP ${response.status} for ${endpoint.name}`);
-      if (response.status >= 500 && retryCount < maxRetries) {
+
+      if (outcome.status === 'http-error') {
+        Logger.error(`HTTP ${outcome.httpStatus} for ${endpoint.name}`);
+      }
+      // unauthenticated / timed-out / malformed / network-error are logged by
+      // endpoint-source.js, which knows what the failure actually was.
+
+      if (outcome.retryable && retryCount < maxRetries) {
         Logger.info(`Retrying ${endpoint.name} (${retryCount + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
         return checkEndpoint(endpoint, settings, retryCount + 1);
@@ -111,14 +102,7 @@ export async function checkEndpoint(endpoint, settings, retryCount = 0) {
       return;
     }
 
-    let data;
-    try {
-      data = await response.json();
-    } catch (parseError) {
-      Logger.error(`Invalid JSON response for ${endpoint.name}:`, parseError);
-      return;
-    }
-    const newCount = data.count || 0;
+    const newCount = outcome.count;
 
     const endpointCounts = await getEndpointCounts();
     const previousCount = endpointCounts.get(endpoint.id) ?? -1;

@@ -1,55 +1,33 @@
 // Shared validation utilities for Zendesk Ticket Monitor
 
+import { describeEndpointUrl } from './endpoint-source.js';
+
+// The URL *rule* ("what is a monitorable Endpoint URL") lives in
+// endpoint-source.js, next to the code that actually reads an Endpoint — so the
+// validation and the fetch can never drift apart. Only the user-facing wording
+// lives here.
+const URL_ERROR_MESSAGES = {
+  required: 'URL is required',
+  invalid: 'Please enter a valid URL',
+  'wrong-site': 'URL must be a Zendesk domain (*.zendesk.com)',
+  'wrong-path': 'URL must be a Zendesk API endpoint',
+  'missing-query': 'URL must include a search query parameter'
+};
+
 /**
  * Validate endpoint URL format
  * @param {string} url - URL to validate
  * @returns {object} { valid: boolean, error: string }
  */
 export function validateEndpointUrl(url) {
-  if (!url || typeof url !== 'string') {
-    return { valid: false, error: 'URL is required' };
-  }
-
-  try {
-    const urlObj = new URL(url);
-    const hostname = urlObj.hostname;
-    const hostnameParts = hostname.split('.');
-
-    // Validate hostname is a Zendesk subdomain
-    const isValidZendeskDomain =
-      hostnameParts.length >= 3 &&
-      hostnameParts[hostnameParts.length - 2] === 'zendesk' &&
-      hostnameParts[hostnameParts.length - 1] === 'com' &&
-      hostnameParts[0].length > 0;
-
-    if (!isValidZendeskDomain) {
-      return {
-        valid: false,
-        error: 'URL must be a Zendesk domain (*.zendesk.com)'
-      };
-    }
-
-    // Validate URL is an API endpoint
-    const hasApiPath = urlObj.pathname.includes('/api/v2/search');
-    if (!hasApiPath) {
-      return {
-        valid: false,
-        error: 'URL must be a Zendesk API endpoint'
-      };
-    }
-
-    // Validate search query parameter exists
-    if (!urlObj.searchParams.has('query')) {
-      return {
-        valid: false,
-        error: 'URL must include a search query parameter'
-      };
-    }
-
+  const { ok, reason } = describeEndpointUrl(url);
+  if (ok) {
     return { valid: true };
-  } catch (_error) {
-    return { valid: false, error: 'Please enter a valid URL' };
   }
+  return {
+    valid: false,
+    error: URL_ERROR_MESSAGES[reason] || 'Please enter a valid URL'
+  };
 }
 
 /**

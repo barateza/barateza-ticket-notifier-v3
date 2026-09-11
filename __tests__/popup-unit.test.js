@@ -71,4 +71,43 @@ describe('popup.js exported functions', () => {
     expect(result.success).toBe(true);
     expect(result.count).toBe(3);
   });
+
+  test('testEndpoint tells the user to log in when there are no cookies', async () => {
+    chrome.cookies.getAll.mockResolvedValue([]);
+    global.fetch = jest.fn();
+
+    const popup = await import('../popup.js');
+    const result = await popup.testEndpoint(endpoints[0].url);
+
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('Not logged in to cpanel.zendesk.com');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('testEndpoint reports rate limiting the same way the poller does', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: { get: (key) => (key === 'Retry-After' ? '60' : null) }
+    });
+
+    const popup = await import('../popup.js');
+    const result = await popup.testEndpoint(endpoints[0].url);
+
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('Rate limited by Zendesk');
+  });
+
+  test('testEndpoint reports a bare HTTP status when the body is not the API shape', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized'
+    });
+
+    const popup = await import('../popup.js');
+    const result = await popup.testEndpoint(endpoints[0].url);
+
+    expect(result).toEqual({ success: false, message: 'HTTP 401: Unauthorized' });
+  });
 });
