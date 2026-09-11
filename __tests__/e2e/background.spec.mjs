@@ -63,18 +63,24 @@ test.describe('Background service worker — Chrome API boundaries', () => {
 
 
   test('storage contains persisted endpoints after add via popup', async ({ context, extensionId }) => {
-    // Read chrome.storage.local directly from the service worker context.
-    const stored = await evaluateInServiceWorker(
-      context,
-      extensionId,
-      () =>
-        new Promise(resolve =>
-          chrome.storage.local.get(['endpoints'], data => resolve(data))
-        )
-    );
-
-    // We just assert the key exists and is an array — content depends on user data.
-    expect(stored).toHaveProperty('endpoints');
-    expect(Array.isArray(stored.endpoints)).toBe(true);
+    // onInstalled writes the defaults asynchronously, so poll instead of reading
+    // once and racing the install handler. We only assert the key is an array —
+    // its content depends on user data.
+    await expect
+      .poll(
+        async () => {
+          const endpoints = await evaluateInServiceWorker(
+            context,
+            extensionId,
+            () =>
+              new Promise(resolve =>
+                chrome.storage.local.get(['endpoints'], data => resolve(data.endpoints))
+              )
+          );
+          return Array.isArray(endpoints);
+        },
+        { timeout: 15_000 }
+      )
+      .toBe(true);
   });
 });

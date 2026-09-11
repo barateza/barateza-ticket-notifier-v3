@@ -20,8 +20,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const EXTENSION_PATH = path.resolve(__dirname, '../');
 const AUTH_DATA_DIR = path.resolve(__dirname, '../.playwright-auth-data');
 
-// ── UPDATE THIS to your real Zendesk subdomain ──────────────────────────────
-const ZENDESK_LOGIN_URL = 'https://YOUR_SUBDOMAIN.zendesk.com/auth/v2/login';
+// ── Zendesk subdomain to authenticate against (must match the E2E endpoints) ──
+const ZENDESK_LOGIN_URL = 'https://cpanel.zendesk.com/auth/v2/login';
 // ────────────────────────────────────────────────────────────────────────────
 
 (async () => {

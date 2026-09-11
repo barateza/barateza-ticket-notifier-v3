@@ -1,19 +1,23 @@
 // __tests__/e2e/popup.spec.js
 //
 // E2E tests for the Zendesk Ticket Monitor popup UI running inside a real
-// Chromium instance with the extension loaded and a live Zendesk session.
+// Chromium instance with the extension loaded.
 //
-// Prerequisites:
-//   - Run `npm run test:e2e:setup` at least once to persist Zendesk cookies.
-//   - The Zendesk account used must have at least one accessible view/endpoint.
+// No Zendesk session is required: nothing here calls the live Zendesk API. The
+// one test that touches it ("Test connection") asserts the no-session behaviour,
+// and the duplicate-detection test uses a URL distinct from the shipped default
+// endpoint — checkForDuplicates compares the FULL url string, so reusing the
+// default's URL makes the add silently fail as a duplicate.
 //
 // Run:  npm run test:e2e
 
 import { test, expect } from './fixtures.mjs';
 
-// ── UPDATE THIS to a real Zendesk API endpoint valid for your account ────────
+// ── Zendesk API endpoint used by the popup tests ─────────────────────────────
+// Same search as the extension's default endpoint, plus a distinguishing
+// parameter so it is not rejected as a duplicate of it.
 const TEST_ENDPOINT_URL =
-  'https://playwright.zendesk.com/api/v2/search.json?query=type:ticket';
+  'https://cpanel.zendesk.com/api/v2/search.json?query=type:ticket+assignee:me+status:open&per_page=5';
 const TEST_ENDPOINT_NAME = 'Playwright – My Tickets';
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -60,13 +64,18 @@ test.describe('Popup UI — authenticated session', () => {
     await page.close();
   });
 
-  test('authenticated session is detected — cookie present', async ({ context, extensionId }) => {
+  test('test connection reports the missing session instead of a bare HTTP error', async ({ context, extensionId }) => {
     const page = await openPopup(context, extensionId);
 
-    // The popup should NOT show an "unauthenticated" or "please login" banner
-    // when a valid Zendesk session exists.
-    const authWarning = page.locator('[data-testid="auth-warning"], .auth-error, .no-auth');
-    await expect(authWarning).toHaveCount(0);
+    // With no Zendesk cookies, endpoint-source returns `unauthenticated` WITHOUT
+    // issuing a request, so this asserts real behaviour offline and deterministically.
+    await page.click('#addEndpointBtn');
+    await page.fill('#endpointUrl', TEST_ENDPOINT_URL);
+    await page.click('#testEndpoint');
+
+    await expect(
+      page.locator('.error', { hasText: 'Not logged in to cpanel.zendesk.com' })
+    ).toBeVisible({ timeout: 10_000 });
 
     await page.close();
   });

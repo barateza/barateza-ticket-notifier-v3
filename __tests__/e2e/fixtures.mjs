@@ -10,19 +10,27 @@
 
 import { test as base, chromium } from '@playwright/test';
 import path from 'path';
+import os from 'os';
+import { existsSync, mkdtempSync } from 'fs';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const EXTENSION_PATH = path.resolve(__dirname, '../../');
 const AUTH_DATA_DIR = path.resolve(__dirname, '../../.playwright-auth-data');
 
-// ── Guard: fail fast with a clear message if auth has not been set up ────────
-import { existsSync } from 'fs';
-if (!existsSync(AUTH_DATA_DIR)) {
-  throw new Error(
-    '\n\n❌  Auth data directory not found.\n' +
-    '    Run `npm run test:e2e:setup` first to create a Zendesk session.\n'
-  );
+// ── A saved Zendesk session is OPTIONAL ──────────────────────────────────────
+// No spec here requires one: the only code path that calls the live Zendesk API
+// is the popup's "Test connection" button, and that is asserted against its
+// no-session behaviour (endpoint-source returns `unauthenticated` without issuing
+// a request when there are no cookies). background.spec.mjs mocks the search API.
+//
+// Requiring a session would make this suite un-runnable on a managed machine —
+// Microsoft Entra Conditional Access will not sign an automation browser in
+// without device compliance — and in CI. So: reuse a saved session when one
+// exists, otherwise boot a throwaway profile.
+function resolveUserDataDir() {
+  if (existsSync(AUTH_DATA_DIR)) return AUTH_DATA_DIR;
+  return mkdtempSync(path.join(os.tmpdir(), 'pw-extension-profile-'));
 }
 
 /**
@@ -93,7 +101,7 @@ export const test = base.extend({
   // Override the default `context` fixture with our persistent one.
   context: async ({ browserName }, use) => {
     void browserName;
-    const context = await chromium.launchPersistentContext(AUTH_DATA_DIR, {
+    const context = await chromium.launchPersistentContext(resolveUserDataDir(), {
       headless: false,
       args: [
         `--disable-extensions-except=${EXTENSION_PATH}`,
